@@ -1,4 +1,5 @@
 import { instance } from '../../shared/api/axiosInstance';
+import { getErrorMessage } from '../../shared/helpers/apiError';
 
 /**
  * Elimina un producto (lo deshabilita)
@@ -17,7 +18,7 @@ export const deleteProduct = async (id) => {
     console.error('Error deleting product:', error);
     return {
       data: null,
-      error: error.response?.data?.message || error.message || 'Error al eliminar el producto',
+      error: getErrorMessage(error, 'Error al eliminar el producto'),
     };
   }
 };
@@ -39,7 +40,7 @@ export const enableProduct = async (id) => {
     console.error('Error enabling product:', error);
     return {
       data: null,
-      error: error.response?.data?.message || error.message || 'Error al habilitar el producto',
+      error: getErrorMessage(error, 'Error al habilitar el producto'),
     };
   }
 };

@@ -1,4 +1,7 @@
 import { instance } from '../../shared/api/axiosInstance';
+import { getErrorMessage } from '../../shared/helpers/apiError';
+import { frontendErrorMessage } from '../helpers/backendError';
+import { ROLES } from '../../shared/constants/roles';
 
 /**
  * Servicio para iniciar sesión
@@ -7,7 +10,7 @@ import { instance } from '../../shared/api/axiosInstance';
  * 
  * @param {string} username - Nombre de usuario
  * @param {string} password - Contraseña
- * @returns {Promise<{data: string | null, error: null | object}>} Token JWT si es exitoso y es cliente, error si falla o es administrador
+ * @returns {Promise<{data: string | null, error: null | string}>} Token JWT si es exitoso y es cliente, error si falla o es administrador
  */
 export const login = async (username, password) => {
   try {
@@ -15,7 +18,7 @@ export const login = async (username, password) => {
 
     // Verificar si la respuesta contiene información del rol
     // Si el backend retorna un rol "Administrador", rechazamos el login desde el modal
-    if (response.data.role === 'Administrador') {
+    if (response.data.role === ROLES.ADMIN) {
       return { 
         data: null, 
         error: 'Los administradores deben usar /login para acceder' 
@@ -30,7 +33,7 @@ export const login = async (username, password) => {
   } catch (error) {
     return { 
       data: null, 
-      error: error.response?.data || error.message 
+      error: getErrorMessage(error, 'Error al iniciar sesión', frontendErrorMessage),
     };
   }
 };

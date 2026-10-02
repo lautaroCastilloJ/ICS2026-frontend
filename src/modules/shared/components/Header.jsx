@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthModal from '../../auth/components/AuthModal';
+import { ROLES } from '../constants/roles';
 
 /**
  * Header principal con navegacion, busqueda y autenticacion.
@@ -34,7 +35,10 @@ function Header({ onSearch }) {
   const navLinks = [
     { href: '/', label: 'Productos' },
     { href: '/cart', label: 'Carrito de compras' },
-    ...(token ? [{ href: '/orders', label: 'Mis Ordenes' }] : []),
+    ...(token ? [
+      { href: '/orders', label: 'Mis Ordenes' },
+      { href: '/account/password', label: 'Cambiar contraseña' },
+    ] : []),
   ];
 
   const renderAuthButtons = (isMobile = false) => (
@@ -63,7 +67,7 @@ function Header({ onSearch }) {
       </div>
     ) : (
       <div className={`flex gap-2 ${isMobile ? 'w-full flex-col' : ''}`}>
-        {userRole === 'Admin' && (
+        {userRole === ROLES.ADMIN && (
           <button
             onClick={handleAdminDashboard}
             className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 w-full"

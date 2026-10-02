@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { createOrder } from "../services/orderService";
+import AddressFields from "./AddressFields";
+import { EMPTY_ADDRESS, toAddressRequest } from "../helpers/address";
 
 /**
  * Componente CheckoutModal
@@ -23,10 +25,13 @@ function CheckoutModal({ cartItems, onClose, onOrderSuccess }) {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
-      shippingAddress: "",
+      shippingAddress: { ...EMPTY_ADDRESS },
+      sameBillingAddress: true,
+      billingAddress: { ...EMPTY_ADDRESS },
       cardholderName: "",
       cardNumber: "",
       expiryDate: "",
@@ -34,6 +39,9 @@ function CheckoutModal({ cartItems, onClose, onOrderSuccess }) {
       notes: "",
     },
   });
+
+  // Si la facturacion usa la misma direccion, no se muestran sus campos
+  const sameBillingAddress = watch("sameBillingAddress");
 
   /**
    * Maneja el envío del formulario de checkout
@@ -44,11 +52,16 @@ function CheckoutModal({ cartItems, onClose, onOrderSuccess }) {
       setLoading(true);
       setError("");
 
+      const shippingAddress = toAddressRequest(formData.shippingAddress);
+      const billingAddress = formData.sameBillingAddress
+        ? shippingAddress
+        : toAddressRequest(formData.billingAddress);
+
       // Llamamos al servicio para crear la orden con los datos completos
       const { data, error: orderError } = await createOrder(
         cartItems,
-        formData.shippingAddress,
-        `Tarjeta a nombre de: ${formData.cardholderName}`, // BillingAddress
+        shippingAddress,
+        billingAddress,
         formData.notes || "Sin notas adicionales"
       );
 
@@ -141,33 +154,32 @@ function CheckoutModal({ cartItems, onClose, onOrderSuccess }) {
                   Dirección de Envío
                 </h3>
 
-                <div>
-                  <label className="block text-zinc-50 font-semibold mb-2">
-                    Dirección Completa *
-                  </label>
-                  <textarea
-                    {...register("shippingAddress", {
-                      required: "La dirección de envío es obligatoria",
-                      minLength: {
-                        value: 10,
-                        message:
-                          "La dirección debe tener al menos 10 caracteres",
-                      },
-                    })}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-50 placeholder:text-zinc-400 text-zinc-50 ${
-                      errors.shippingAddress
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
-                    placeholder="Calle, altura, ciudad, provincia, código postal"
-                    rows="3"
+                <AddressFields
+                  name="shippingAddress"
+                  register={register}
+                  errors={errors.shippingAddress}
+                />
+              </div>
+
+              {/* Sección: Dirección de Facturación */}
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-semibold text-zinc-50 mb-4">
+                  Dirección de Facturación
+                </h3>
+
+                <label className="flex items-center gap-2 text-zinc-50 mb-4 cursor-pointer">
+                  <input type="checkbox" {...register("sameBillingAddress")} />
+                  Usar la misma dirección de envío
+                </label>
+
+                {!sameBillingAddress && (
+                  <AddressFields
+                    name="billingAddress"
+                    register={register}
+                    errors={errors.billingAddress}
+                    shouldUnregister
                   />
-                  {errors.shippingAddress && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.shippingAddress.message}
-                    </p>
-                  )}
-                </div>
+                )}
               </div>
 
               {/* Sección: Información de Tarjeta */}

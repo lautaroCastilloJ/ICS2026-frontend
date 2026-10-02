@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getOrderById } from '../services/orderService';
+import { formatAddress } from '../helpers/address';
 
 /**
  * Modal de detalle de orden con diseño responsive.
@@ -242,7 +243,7 @@ function OrderDetailModal({ order, orderId, isAdmin = false, onClose }) {
                         <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
                           <p className="text-sm font-semibold text-zinc-300 mb-1">Direccion de Envio</p>
                           <p className="text-sm text-zinc-100">
-                            {orderData.shippingAddress || orderData.ShippingAddress}
+                            {formatAddress(orderData.shippingAddress || orderData.ShippingAddress)}
                           </p>
                         </div>
                       )}
@@ -250,7 +251,7 @@ function OrderDetailModal({ order, orderId, isAdmin = false, onClose }) {
                         <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
                           <p className="text-sm font-semibold text-zinc-300 mb-1">Direccion de Facturacion</p>
                           <p className="text-sm text-zinc-100">
-                            {orderData.billingAddress || orderData.BillingAddress}
+                            {formatAddress(orderData.billingAddress || orderData.BillingAddress)}
                           </p>
                         </div>
                       )}

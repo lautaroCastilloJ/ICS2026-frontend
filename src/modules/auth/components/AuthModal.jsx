@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import useAuth from '../hook/useAuth';
-import { frontendErrorMessage } from '../helpers/backendError';
 
 /**
  * Componente AuthModal - Modal de autenticación para clientes
@@ -56,7 +55,7 @@ function AuthModal({ onClose, initialMode = 'login' }) {
       const { error } = await singin(formData.username, formData.password);
 
       if (error) {
-        setErrorMessage(error.frontendErrorMessage || 'Error al iniciar sesión');
+        setErrorMessage(error);
         return;
       }
 
@@ -67,11 +66,8 @@ function AuthModal({ onClose, initialMode = 'login' }) {
         window.location.reload();
       }, 1500);
     } catch (error) {
-      if (error?.response?.data?.code) {
-        setErrorMessage(frontendErrorMessage[error?.response?.data?.code]);
-      } else {
-        setErrorMessage('Error inesperado. Intenta nuevamente');
-      }
+      console.error('Login error:', error);
+      setErrorMessage('Error inesperado. Intenta nuevamente');
     }
   };
 
@@ -100,7 +96,7 @@ function AuthModal({ onClose, initialMode = 'login' }) {
       );
 
       if (error) {
-        setErrorMessage(error.frontendErrorMessage || 'Error al registrarse');
+        setErrorMessage(error);
         return;
       }
 
@@ -112,11 +108,8 @@ function AuthModal({ onClose, initialMode = 'login' }) {
         setSuccessMessage('');
       }, 2000);
     } catch (error) {
-      if (error?.response?.data?.code) {
-        setErrorMessage(frontendErrorMessage[error?.response?.data?.code]);
-      } else {
-        setErrorMessage('Error inesperado. Intenta nuevamente');
-      }
+      console.error('Signup error:', error);
+      setErrorMessage('Error inesperado. Intenta nuevamente');
     }
   };
 

@@ -5,7 +5,7 @@ import Card from '../../shared/components/Card';
 import Input from '../../shared/components/Input';
 import { createProduct } from '../services/create';
 import { useState } from 'react';
-import { frontendErrorMessage } from '../helpers/backendError';
+import { getErrorMessage } from '../../shared/helpers/apiError';
 
 function CreateProductForm() {
   const {
@@ -33,13 +33,7 @@ function CreateProductForm() {
 
       navigate('/admin/products');
     } catch (error) {
-      if (error.response?.data?.detail) {
-        const errorMessage = frontendErrorMessage[error.response.data.code];
-
-        setErrorBackendMessage(errorMessage);
-      } else {
-        setErrorBackendMessage('Contactar a Soporte');
-      }
+      setErrorBackendMessage(getErrorMessage(error, 'Contactar a Soporte'));
     }
   };
 

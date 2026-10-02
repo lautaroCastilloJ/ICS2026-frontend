@@ -1,4 +1,5 @@
 import { instance } from '../../shared/api/axiosInstance';
+import { getErrorMessage } from '../../shared/helpers/apiError';
 
 /**
  * Actualiza un producto existente
@@ -30,13 +31,10 @@ export const updateProduct = async (id, formData) => {
     };
   } catch (error) {
     console.error('Error updating product:', error);
-    const errorMessage = error.response?.data?.errors 
-      ? Object.values(error.response.data.errors).flat().join(', ')
-      : error.response?.data?.message || error.message || 'Error al actualizar el producto';
-    
+
     return {
       data: null,
-      error: errorMessage,
+      error: getErrorMessage(error, 'Error al actualizar el producto'),
     };
   }
 };

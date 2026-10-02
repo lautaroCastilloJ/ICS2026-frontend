@@ -1,4 +1,5 @@
 import { instance } from '../../shared/api/axiosInstance';
+import { getErrorMessage } from '../../shared/helpers/apiError';
 
 export const getAllOrders = async (pageNumber = 1, pageSize = 10) => {
   try {
@@ -20,7 +21,7 @@ export const getAllOrders = async (pageNumber = 1, pageSize = 10) => {
     console.error('Error fetching orders:', error);
     return {
       data: null,
-      error: error.response?.data?.message || error.message || 'Error al cargar las ordenes',
+      error: getErrorMessage(error, 'Error al cargar las ordenes'),
     };
   }
 };
@@ -41,14 +42,14 @@ export const getAdminOrderById = async (orderId) => {
         console.error('Fallback order detail error:', err);
         return {
           data: null,
-          error: err.response?.data?.message || err.message || 'Error al cargar el detalle de la orden',
+          error: getErrorMessage(err, 'Error al cargar el detalle de la orden'),
         };
       }
     }
     console.error('Error fetching admin order detail:', error);
     return {
       data: null,
-      error: error.response?.data?.message || error.message || 'Error al cargar el detalle de la orden',
+      error: getErrorMessage(error, 'Error al cargar el detalle de la orden'),
     };
   }
 };

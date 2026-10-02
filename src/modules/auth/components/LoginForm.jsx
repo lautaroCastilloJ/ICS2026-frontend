@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import Input from '../../shared/components/Input';
 import Button from '../../shared/components/Button';
 import { adminLogin } from '../services/adminLogin';
-import { frontendErrorMessage } from '../helpers/backendError';
 
 /**
  * Componente LoginForm
@@ -38,7 +37,7 @@ function LoginForm() {
       const { data, error } = await adminLogin(formData.username, formData.password);
 
       if (error) {
-        setErrorMessage(typeof error === 'string' ? error : 'Error al iniciar sesión');
+        setErrorMessage(error);
         return;
       }
 
@@ -114,15 +113,6 @@ function LoginForm() {
         className='shadow-l rounded-xl p-4 bg-zinc-900 text-white hover:bg-zinc-800'
       >
         {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-      </Button>
-
-      <Button 
-        variant='secondary'
-        onClick={() => navigate('/signup')}
-        type='button'
-        className='shadow-l rounded-xl p-4 bg-zinc-900 text-white hover:bg-zinc-800'
-      >
-        Crear Cuenta
       </Button>
 
       {/* Mensaje de error */}

@@ -132,6 +132,18 @@ function Dashboard() {
                 className={getLinkStyles}
               >Ordenes</NavLink>
             </li>
+            <li>
+              <NavLink
+                to='/admin/users/create'
+                className={getLinkStyles}
+              >Administradores</NavLink>
+            </li>
+            <li>
+              <NavLink
+                to='/admin/account/password'
+                className={getLinkStyles}
+              >Cambiar contraseña</NavLink>
+            </li>
           </ul>
           <hr className='opacity-15 mt-4' />
         </nav>

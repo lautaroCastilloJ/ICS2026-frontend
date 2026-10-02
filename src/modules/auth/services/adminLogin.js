@@ -1,4 +1,7 @@
 import { instance } from '../../shared/api/axiosInstance';
+import { getErrorMessage } from '../../shared/helpers/apiError';
+import { frontendErrorMessage } from '../helpers/backendError';
+import { ROLES } from '../../shared/constants/roles';
 
 /**
  * Servicio para iniciar sesión como administrador
@@ -6,14 +9,14 @@ import { instance } from '../../shared/api/axiosInstance';
  * 
  * @param {string} username - Nombre de usuario
  * @param {string} password - Contraseña
- * @returns {Promise<{data: object, error: null | object}>} {token, role} si es administrador, error si falla o no es administrador
+ * @returns {Promise<{data: object, error: null | string}>} {token, role} si es administrador, error si falla o no es administrador
  */
 export const adminLogin = async (username, password) => {
   try {
     const response = await instance.post('api/auth/login', { username, password });
 
     // Verificar si el usuario es administrador
-    if (response.data.role !== 'Administrador' && response.data.role !== 'Admin') {
+    if (response.data.role !== ROLES.ADMIN) {
       return { 
         data: null, 
         error: 'Solo los administradores pueden acceder a esta sección' 
@@ -31,7 +34,7 @@ export const adminLogin = async (username, password) => {
   } catch (error) {
     return { 
       data: null, 
-      error: error.response?.data?.message || error.message 
+      error: getErrorMessage(error, 'Error al iniciar sesión', frontendErrorMessage),
     };
   }
 };

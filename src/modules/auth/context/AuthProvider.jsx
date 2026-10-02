@@ -14,7 +14,8 @@ function AuthProvider({ children }) {
   const singout = () => {
     // Eliminar token de autenticación
     localStorage.removeItem('token');
-    
+    localStorage.removeItem('role');
+
     // Limpiar el carrito de compras
     localStorage.removeItem('cart');
     
@@ -29,23 +30,20 @@ function AuthProvider({ children }) {
       return { error };
     }
 
+    // Sesion de cliente: se descarta un posible rol de administrador previo
     localStorage.setItem('token', data);
+    localStorage.removeItem('role');
     setIsAuthenticated(true);
 
     return { error: null };
   };
 
+  // El registro no inicia sesion: el backend devuelve solo el id del usuario
+  // creado (sin token), y el usuario debe loguearse a continuacion.
   const singup = async (userName, email, password, displayName, phoneNumber) => {
-    const { data, error } = await signup(userName, email, password, displayName, phoneNumber);
+    const { error } = await signup(userName, email, password, displayName, phoneNumber);
 
-    if (error) {
-      return { error };
-    }
-
-    localStorage.setItem('token', data);
-    setIsAuthenticated(true);
-
-    return { error: null };
+    return { error: error ?? null };
   };
 
   return (

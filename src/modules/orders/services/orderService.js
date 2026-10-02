@@ -1,11 +1,12 @@
 import { instance } from '../../shared/api/axiosInstance';
+import { getErrorMessage } from '../../shared/helpers/apiError';
 
 /**
  * Servicio para crear una nueva orden
  * 
  * @param {array} items - Items de la orden [{id, quantity}, ...]
- * @param {string} shippingAddress - Dirección de envío
- * @param {string} billingAddress - Dirección de facturación
+ * @param {object} shippingAddress - Dirección de envío { street, number, city, province, postalCode }
+ * @param {object} billingAddress - Dirección de facturación (mismo formato)
  * @param {string} notes - Notas de la orden
  * @returns {Promise<{data: object, error: null | string}>} Respuesta del servidor
  */
@@ -35,7 +36,7 @@ export const createOrder = async (items, shippingAddress, billingAddress, notes)
     console.error('Error al crear la orden:', error.message);
     return { 
       data: null, 
-      error: error.response?.data?.message || error.message 
+      error: getErrorMessage(error, 'Error al procesar la orden'),
     };
   }
 };
@@ -60,7 +61,7 @@ export const getOrderById = async (orderId) => {
     console.error('Error al obtener detalle de orden:', error.message);
     return { 
       data: null, 
-      error: error.response?.data?.message || error.message 
+      error: getErrorMessage(error, 'Error al cargar el detalle de la orden'),
     };
   }
 };
@@ -84,7 +85,7 @@ export const getUserOrders = async () => {
     console.error('Error al obtener órdenes:', error.message);
     return { 
       data: null, 
-      error: error.response?.data?.message || error.message 
+      error: getErrorMessage(error, 'Error al cargar las órdenes'),
     };
   }
 };

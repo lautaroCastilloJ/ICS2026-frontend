@@ -1,4 +1,5 @@
 import { instance } from '../../shared/api/axiosInstance';
+import { getErrorMessage, isErrorCode } from '../../shared/helpers/apiError';
 
 /**
  * Obtiene lista de productos para el administrador con filtros
@@ -32,10 +33,16 @@ export const getProducts = async (search = '', status = 'all', pageNumber = 1, p
       error: null,
     };
   } catch (error) {
+    // El backend responde 404 NO_PRODUCTS_AVAILABLE cuando el filtro no
+    // encuentra productos: para la UI es una lista vacia, no un error.
+    if (isErrorCode(error, 'NO_PRODUCTS_AVAILABLE')) {
+      return { data: { total: 0, productItems: [] }, error: null };
+    }
+
     console.error('Error fetching products:', error);
     return {
       data: null,
-      error: error.response?.data?.message || error.message || 'Error al cargar los productos',
+      error: getErrorMessage(error, 'Error al cargar los productos'),
     };
   }
 };
@@ -62,14 +69,14 @@ export const getProductById = async (id) => {
         console.error('Fallback product detail error:', err);
         return {
           data: null,
-          error: err.response?.data?.message || err.message || 'Error al cargar el producto',
+          error: getErrorMessage(err, 'Error al cargar el producto'),
         };
       }
     }
     console.error('Error fetching product detail:', error);
     return {
       data: null,
-      error: error.response?.data?.message || error.message || 'Error al cargar el producto',
+      error: getErrorMessage(error, 'Error al cargar el producto'),
     };
   }
 };

@@ -1,6 +1,9 @@
+/**
+ * Mensajes propios del frontend para codigos de error del backend.
+ * Solo se definen los que deben mostrarse distinto al mensaje del servidor.
+ */
 const frontendErrorMessage = {
-  1000: 'Usuario y/o Contraseña no son correctos',
-  1002: 'Usuario y/o Contraseña no son correctos',
+  AUTH_INVALID_CREDENTIALS: 'Usuario y/o Contraseña no son correctos',
 };
 
 export {

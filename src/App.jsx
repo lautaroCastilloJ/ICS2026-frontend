@@ -10,7 +10,9 @@ import OrdersHistoryPage from './modules/orders/pages/OrdersHistoryPage';
 import Home from './modules/home/pages/Home';
 import ListProductsPage from './modules/products/pages/ListProductsPage';
 import CreateProductPage from './modules/products/pages/CreateProductPage';
-import SignupPage from './modules/auth/pages/SignupPage';
+import CreateAdminPage from './modules/users/pages/CreateAdminPage';
+import ChangePasswordPage from './modules/auth/pages/ChangePasswordPage';
+import CustomerChangePasswordPage from './modules/auth/pages/CustomerChangePasswordPage';
 
 function App() {
   const router = createBrowserRouter([
@@ -27,12 +29,12 @@ function App() {
       element: <OrdersHistoryPage />,
     },
     {
-      path: '/login',
-      element: <LoginPage />,
+      path: '/account/password',
+      element: <CustomerChangePasswordPage />,
     },
     {
-      path: '/signup',
-      element: <SignupPage />,
+      path: '/login',
+      element: <LoginPage />,
     },
     {
       path: '/admin',
@@ -57,6 +59,14 @@ function App() {
         {
           path: '/admin/orders',
           element: <ListOrdersPage />,
+        },
+        {
+          path: '/admin/users/create',
+          element: <CreateAdminPage />,
+        },
+        {
+          path: '/admin/account/password',
+          element: <ChangePasswordPage />,
         },
       ],
     },
