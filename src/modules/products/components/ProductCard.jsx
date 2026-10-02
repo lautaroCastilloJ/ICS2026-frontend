@@ -1,55 +1,24 @@
 import { useState } from 'react';
+import { addProductToCart, hasAvailableStock, readCart } from '../../orders/helpers/cart';
 
 /**
- * Tarjeta individual de producto con control de cantidad y agregado al carrito.
+ * Agrega una unidad al carrito; las cantidades se modifican en el carrito.
  * Permite agregar aun sin estar autenticado (se guarda en localStorage).
  */
 function ProductCard({ product }) {
-  const [quantity, setQuantity] = useState(1);
-  const [showSuccess, setShowSuccess] = useState(false);
-
-  const handleDecrease = () => {
-    if (quantity > 0) {
-      setQuantity(quantity - 1);
-    }
-  };
-
-  const handleIncrease = () => {
-    if (quantity < product.stockQuantity) {
-      setQuantity(quantity + 1);
-    }
-  };
-
-  const handleQuantityChange = (e) => {
-    let value = parseInt(e.target.value, 10) || 0;
-    if (value < 0) value = 0;
-    if (value > product.stockQuantity) value = product.stockQuantity;
-    setQuantity(value);
-  };
+  const [feedback, setFeedback] = useState('');
 
   const handleAddToCart = () => {
-    if (quantity === 0) {
-      alert('Por favor selecciona una cantidad');
+    const cart = readCart();
+    const updatedCart = addProductToCart(cart, product);
+
+    if (updatedCart === cart) {
+      setFeedback('Ya agregaste todas las unidades disponibles. Podés revisar la cantidad en el carrito.');
       return;
     }
 
-    const existingCart = JSON.parse(localStorage.getItem('cart')) || [];
-    const existingItem = existingCart.find((item) => item.id === product.id);
-
-    if (existingItem) {
-      existingItem.quantity += quantity;
-    } else {
-      existingCart.push({
-        ...product,
-        quantity,
-      });
-    }
-
-    localStorage.setItem('cart', JSON.stringify(existingCart));
-
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 2000);
-    setQuantity(0);
+    localStorage.setItem('cart', JSON.stringify(updatedCart));
+    setFeedback('Agregado al carrito');
   };
 
   return (
@@ -88,48 +57,18 @@ function ProductCard({ product }) {
             </p>
           )}
 
-          <div className="flex items-center gap-2 mb-3">
-            <button
-              onClick={handleDecrease}
-              disabled={quantity === 0 || product.stockQuantity === 0}
-              className="w-10 h-10 shadow-s rounded-xl p-4 bg-zinc-900 text-white flex items-center justify-center 
-                         hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition hover:text-zinc-950"
-            >
-              -
-            </button>
-
-            <input
-              type="number"
-              min="0"
-              max={product.stockQuantity}
-              value={quantity}
-              onChange={handleQuantityChange}
-              className="w-16 text-center rounded-lg border border-zinc-700 bg-zinc-950 text-white py-2"
-              disabled={product.stockQuantity === 0}
-            />
-
-            <button
-              onClick={handleIncrease}
-              disabled={quantity >= product.stockQuantity || product.stockQuantity === 0}
-              className="w-10 h-10 shadow-s rounded-xl p-4 bg-zinc-900 text-white flex items-center justify-center 
-                         hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition hover:text-zinc-950"
-            >
-              +
-            </button>
-          </div>
-
           <button
             onClick={handleAddToCart}
-            disabled={quantity === 0 || product.stockQuantity === 0}
+            disabled={!hasAvailableStock(product)}
             className="w-full shadow-s rounded-xl p-4 bg-zinc-900 text-white transition hover:bg-zinc-50 hover:text-zinc-900 disabled:bg-gray-500 disabled:cursor-not-allowed
                      font-semibold py-2"
           >
-            Agregar
+            Agregar al carrito
           </button>
 
-          {showSuccess && (
-            <p className="text-green-600 text-sm text-center mt-2 font-medium">
-              Agregado al carrito
+          {feedback && (
+            <p role="status" className="text-zinc-300 text-sm text-center mt-2 font-medium">
+              {feedback}
             </p>
           )}
         </div>

@@ -132,15 +132,13 @@ function CheckoutModal({ cartItems, onClose, onOrderSuccess }) {
                 ))}
               </div>
               <div className="border-t border-gray-200 pt-2 font-semibold text-gray-50 flex justify-between">
-                <span>Total (con IVA 21%):</span>
+                <span>Total:</span>
                 <span>
                   $
-                  {(
-                    cartItems.reduce(
-                      (total, item) =>
-                        total + item.currentUnitPrice * item.quantity,
-                      0
-                    ) * 1.21
+                  {cartItems.reduce(
+                    (total, item) =>
+                      total + item.currentUnitPrice * item.quantity,
+                    0
                   ).toFixed(2)}
                 </span>
               </div>
