@@ -1,79 +1,84 @@
 import { useState } from 'react';
-import { addProductToCart, hasAvailableStock, readCart } from '../../orders/helpers/cart';
+import { addProductToCart, hasAvailableStock, readCart, writeCart } from '../../orders/helpers/cart';
+import { formatPrice } from '../../shared/helpers/format';
+import Button from '../../shared/ui/Button';
+import { ImageIcon } from '../../shared/ui/icons';
+
+// Desde este stock se avisa "Últimas N unidades".
+const LOW_STOCK_THRESHOLD = 3;
+
+const quantityInCart = (productId) => readCart().find((item) => item.id === productId)?.quantity ?? 0;
 
 /**
+ * Tarjeta de producto del catalogo.
  * Agrega una unidad al carrito; las cantidades se modifican en el carrito.
  * Permite agregar aun sin estar autenticado (se guarda en localStorage).
  */
 function ProductCard({ product }) {
+  const [inCart, setInCart] = useState(() => quantityInCart(product.id));
   const [feedback, setFeedback] = useState('');
+  const [imageFailed, setImageFailed] = useState(false);
+
+  const inStock = hasAvailableStock(product);
+  const canAddMore = inStock && inCart < product.stockQuantity;
+  const lowStock = inStock && product.stockQuantity <= LOW_STOCK_THRESHOLD;
 
   const handleAddToCart = () => {
     const cart = readCart();
     const updatedCart = addProductToCart(cart, product);
 
     if (updatedCart === cart) {
-      setFeedback('Ya agregaste todas las unidades disponibles. Podés revisar la cantidad en el carrito.');
+      setFeedback('Ya agregaste todas las unidades disponibles.');
+
       return;
     }
 
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
-    setFeedback('Agregado al carrito');
+    writeCart(updatedCart);
+    setInCart(quantityInCart(product.id));
+    setFeedback('');
   };
 
   return (
-    <>
-      <div className="shadow-l rounded-xl p-4 bg-zinc-900 text-white">
-        <div className="bg-gray-200 aspect-square overflow-hidden flex items-center justify-center">
-          {product.imageUrl ? (
-            <img
-              src={product.imageUrl}
-              alt={product.name}
-              className="w-full h-full object-contain"
-            />
-          ) : (
-            <div className="text-gray-400 text-center w-full h-full flex flex-col items-center justify-center">
-              <p>Sin imagen</p>
-            </div>
-          )}
-        </div>
-
-        <div className="p-4">
-          <h3 className="text-zinc-50 font-semibold h-15 text-lg mb-1 line-clamp-2">
-            {product.name}
-          </h3>
-
-          <p className="text-zinc-400 text-xl mb-3">
-            ${product.currentUnitPrice.toFixed(2)}
-          </p>
-
-          {product.stockQuantity > 0 ? (
-            <p className="text-zinc-400 text-sm font-medium mb-3">
-              Stock: {product.stockQuantity}
-            </p>
-          ) : (
-            <p className="text-red-600 text-sm font-medium mb-3">
-              Sin stock
-            </p>
-          )}
-
-          <button
-            onClick={handleAddToCart}
-            disabled={!hasAvailableStock(product)}
-            className="w-full shadow-s rounded-xl p-4 bg-zinc-900 text-white transition hover:bg-zinc-50 hover:text-zinc-900 disabled:bg-gray-500 disabled:cursor-not-allowed
-                     font-semibold py-2"
-          >
-            Agregar al carrito
-          </button>
-
-          {feedback && (
-            <p role="status" className="text-zinc-300 text-sm text-center mt-2 font-medium">
-              {feedback}
-            </p>
-          )}
-        </div>
+    <article className="flex flex-col gap-4">
+      <div className="flex aspect-square items-center justify-center overflow-hidden rounded-card bg-surface text-faint">
+        {product.imageUrl && !imageFailed ? (
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            loading="lazy"
+            onError={() => setImageFailed(true)}
+            className="size-full object-contain p-6 mix-blend-multiply dark:mix-blend-normal"
+          />
+        ) : (
+          <ImageIcon size={44} role="img" aria-label="Sin imagen" aria-hidden={undefined} />
+        )}
       </div>
-    </>
+
+      <div className="flex flex-col gap-1 px-1">
+        {lowStock && (
+          <p className="text-xs font-semibold text-warn">
+            {product.stockQuantity === 1 ? 'Última unidad' : `Últimas ${product.stockQuantity} unidades`}
+          </p>
+        )}
+        {!inStock && <p className="text-xs font-semibold text-muted">Sin stock</p>}
+        <h2 className="line-clamp-2 text-[19px] font-semibold tracking-tight">{product.name}</h2>
+        {product.description && (
+          <p className="line-clamp-2 text-sm leading-snug text-muted">{product.description}</p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between gap-3 px-1">
+        <div className="flex flex-col">
+          <span className="text-[17px] font-medium">{formatPrice(product.currentUnitPrice)}</span>
+          {inCart > 0 && <span className="text-xs text-muted">{inCart} en el carrito</span>}
+        </div>
+        <Button onClick={handleAddToCart} disabled={!canAddMore}>
+          {!inStock ? 'Agotado' : canAddMore ? 'Agregar' : 'Sin más stock'}
+        </Button>
+      </div>
+
+      {feedback && <p role="status" className="px-1 text-xs text-muted">{feedback}</p>}
+    </article>
   );
 }
 

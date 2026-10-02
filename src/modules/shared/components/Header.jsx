@@ -1,209 +1,151 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import AuthModal from '../../auth/components/AuthModal';
+import useAuth from '../../auth/hook/useAuth';
+import useCartCount from '../../orders/hook/useCartCount';
+import { CART_CHANGE_EVENT } from '../../orders/helpers/cart';
 import { ROLES } from '../constants/roles';
+import IconButton from '../ui/IconButton';
+import ThemeToggle from '../ui/ThemeToggle';
+import { BagIcon, UserIcon } from '../ui/icons';
+import { cn } from '../ui/cn';
+
+const navLinkClass = ({ isActive }) => cn(
+  'text-sm transition hover:text-ink',
+  isActive ? 'font-medium text-ink' : 'text-muted',
+);
+
+const menuItemClass = 'flex min-h-11 w-full items-center rounded-xl px-3 text-left text-[15px] text-ink ' +
+  'bg-transparent shadow-none cursor-pointer transition hover:bg-hover';
 
 /**
- * Header principal con navegacion, busqueda y autenticacion.
- * Incluye menu responsive para mobile sin modificar los fondos existentes.
+ * Barra superior de la tienda: marca, navegacion, tema, cuenta y carrito.
+ * La busqueda vive en el catalogo (Home), no aca.
  */
-function Header({ onSearch }) {
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login'); // 'login' o 'signup'
-  const [searchTerm, setSearchTerm] = useState('');
+function Header() {
+  const [authMode, setAuthMode] = useState(null); // null | 'login' | 'signup'
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   const navigate = useNavigate();
-  const token = localStorage.getItem('token');
-  const userRole = localStorage.getItem('role');
+  const { isAuthenticated, singout } = useAuth();
+  const cartCount = useCartCount();
+  const isLoggedIn = isAuthenticated || Boolean(localStorage.getItem('token'));
+  const isAdmin = localStorage.getItem('role') === ROLES.ADMIN;
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (onSearch) onSearch(searchTerm);
+  // Cierra el menu de cuenta con clic afuera o Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handlePointer = (event) => {
+      if (!menuRef.current?.contains(event.target)) setMenuOpen(false);
+    };
+    const handleKey = (event) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+
+    document.addEventListener('pointerdown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [menuOpen]);
+
+  const openAuth = (mode) => {
     setMenuOpen(false);
+    setAuthMode(mode);
+  };
+
+  const goTo = (path) => {
+    setMenuOpen(false);
+    navigate(path);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
+    setMenuOpen(false);
+    singout();
+    // singout vacia el carrito: actualizar el contador.
+    window.dispatchEvent(new Event(CART_CHANGE_EVENT));
     navigate('/');
-    window.location.reload();
   };
-
-  const handleAdminDashboard = () => navigate('/admin');
-
-  const navLinks = [
-    { href: '/', label: 'Productos' },
-    { href: '/cart', label: 'Carrito de compras' },
-    ...(token ? [
-      { href: '/orders', label: 'Mis Ordenes' },
-      { href: '/account/password', label: 'Cambiar contraseña' },
-    ] : []),
-  ];
-
-  const renderAuthButtons = (isMobile = false) => (
-    !token ? (
-      <div className={`flex gap-2 ${isMobile ? 'w-full flex-col' : ''}`}>
-        <button
-          onClick={() => {
-            setAuthMode('login');
-            setShowAuthModal(true);
-            setMenuOpen(false);
-          }}
-          className="shadow-s rounded-xl p-4 bg-zinc-900 text-white transition hover:bg-zinc-50 hover:text-zinc-900 w-full whitespace-nowrap"
-        >
-          Iniciar Sesion
-        </button>
-        <button
-          onClick={() => {
-            setAuthMode('signup');
-            setShowAuthModal(true);
-            setMenuOpen(false);
-          }}
-          className="shadow-s rounded-xl p-4 bg-zinc-900 text-white transition hover:bg-zinc-50 hover:text-zinc-900 w-full"
-        >
-          Registrarse
-        </button>
-      </div>
-    ) : (
-      <div className={`flex gap-2 ${isMobile ? 'w-full flex-col' : ''}`}>
-        {userRole === ROLES.ADMIN && (
-          <button
-            onClick={handleAdminDashboard}
-            className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 w-full"
-          >
-            Panel Admin
-          </button>
-        )}
-        <button
-          onClick={handleLogout}
-          className="shadow-s rounded-xl p-4 bg-zinc-900 text-white transition hover:bg-zinc-50 hover:text-zinc-900 w-full whitespace-nowrap"
-        >
-          Cerrar Sesion
-        </button>
-      </div>
-    )
-  );
 
   return (
     <>
-      <header className="shadow-s rounded-xl bg-zinc-900 text-zinc-50">
-        <div className="mx-auto flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2 text-left"
-            >
-              <img src="../../../../public/logo.png" alt="Logo" className="h-14 w-auto" />
-            </button>
-          </div>
+      <header className="sticky top-0 z-40 border-b border-nav-line bg-nav backdrop-blur-xl backdrop-saturate-150">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
+          <Link to="/" className="text-xl font-semibold tracking-tight text-ink">
+            Tienda
+          </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden items-center gap-6 md:flex">
-            {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="text-zinc-50 font-medium transition hover:text-zinc-400"
-              >
-                {link.label}
-              </a>
-            ))}
+          <nav aria-label="Principal" className="hidden items-center gap-8 md:flex">
+            <NavLink to="/" end className={navLinkClass}>Catálogo</NavLink>
+            {isLoggedIn && <NavLink to="/orders" className={navLinkClass}>Mis pedidos</NavLink>}
           </nav>
 
-          {/* Desktop search */}
-          <form
-            onSubmit={handleSearch}
-            className="hidden flex-1 items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 shadow-s md:flex md:max-w-md"
-          >
-            <input
-              type="text"
-              placeholder="Buscar productos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none border-0"
-            />
-            <button
-              type="submit"
-              className="text-zinc-100 transition hover:text-white"
-              aria-label="Buscar"
-            >
-              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-              </svg>
-            </button>
-          </form>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
 
-          {/* Desktop auth */}
-          <div className="hidden md:flex items-center gap-3">
-            {renderAuthButtons()}
-          </div>
+            <div ref={menuRef} className="relative">
+              <IconButton
+                label="Cuenta"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                <UserIcon />
+              </IconButton>
 
-          {/* Mobile toggles */}
-          <div className="flex items-center gap-3 md:hidden">
-            <button
-              onClick={() => setMenuOpen((prev) => !prev)}
-              className="rounded-xl bg-zinc-900 p-3 text-white shadow-s transition hover:bg-zinc-800"
-              aria-label="Abrir menu"
+              {menuOpen && (
+                <div
+                  role="menu"
+                  aria-label="Cuenta"
+                  className="absolute right-0 top-12 w-60 rounded-2xl border border-line bg-canvas p-2 shadow-xl dark:bg-surface"
+                >
+                  <div className="md:hidden">
+                    <button role="menuitem" className={menuItemClass} onClick={() => goTo('/')}>Catálogo</button>
+                    {isLoggedIn && (
+                      <button role="menuitem" className={menuItemClass} onClick={() => goTo('/orders')}>Mis pedidos</button>
+                    )}
+                    <div className="my-2 h-px bg-line" />
+                  </div>
+
+                  {isLoggedIn ? (
+                    <>
+                      {isAdmin && (
+                        <button role="menuitem" className={menuItemClass} onClick={() => goTo('/admin')}>Panel de administración</button>
+                      )}
+                      <button role="menuitem" className={menuItemClass} onClick={() => goTo('/account/password')}>Cambiar contraseña</button>
+                      <button role="menuitem" className={menuItemClass} onClick={handleLogout}>Cerrar sesión</button>
+                    </>
+                  ) : (
+                    <>
+                      <button role="menuitem" className={menuItemClass} onClick={() => openAuth('login')}>Iniciar sesión</button>
+                      <button role="menuitem" className={menuItemClass} onClick={() => openAuth('signup')}>Crear cuenta</button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <Link
+              to="/cart"
+              aria-label={`Carrito, ${cartCount} ${cartCount === 1 ? 'producto' : 'productos'}`}
+              className="relative inline-flex size-11 items-center justify-center rounded-full text-ink transition hover:bg-hover"
             >
-              {menuOpen ? '✕' : '☰'}
-            </button>
+              <BagIcon />
+              {cartCount > 0 && (
+                <span className="absolute right-1 top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-inverse px-1.5 text-[11px] font-semibold text-inverse-ink">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
           </div>
         </div>
-
-        {/* Mobile panel */}
-        {menuOpen && (
-          <div className="border-t border-zinc-800 bg-zinc-900 px-4 pb-4 pt-3 sm:px-6 md:hidden">
-            <form
-              onSubmit={handleSearch}
-              className="mb-3 flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 shadow-s"
-            >
-              <input
-                type="text"
-                placeholder="Buscar productos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 outline-none"
-              />
-              <button
-                type="submit"
-                className="text-zinc-100 transition hover:text-white"
-                aria-label="Buscar"
-              >
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </form>
-
-            <div className="flex flex-col gap-3">
-              <nav className="flex flex-col gap-2">
-                {navLinks.map((link) => (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    className="rounded-xl px-3 py-2 text-zinc-50 transition hover:bg-zinc-800"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    {link.label}
-                  </a>
-                ))}
-              </nav>
-
-              {renderAuthButtons(true)}
-            </div>
-          </div>
-        )}
       </header>
 
-      {/* Modal de autenticacion */}
-      {showAuthModal && (
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-          initialMode={authMode}
-        />
-      )}
+      {authMode && <AuthModal onClose={() => setAuthMode(null)} initialMode={authMode} />}
     </>
   );
 }

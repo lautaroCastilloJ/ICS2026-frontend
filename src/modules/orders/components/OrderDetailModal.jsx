@@ -1,288 +1,159 @@
 import { useState, useEffect } from 'react';
 import { getOrderById } from '../services/orderService';
 import { formatAddress } from '../helpers/address';
+import { getOrderStatus, shortOrderNumber } from '../helpers/orderStatus';
+import { formatDate, formatPrice } from '../../shared/helpers/format';
+import Alert from '../../shared/ui/Alert';
+import Badge from '../../shared/ui/Badge';
+import Modal from '../../shared/ui/Modal';
+
+// Acepta tanto camelCase como PascalCase en las respuestas del backend.
+const pick = (source, camel, pascal) => source?.[camel] ?? source?.[pascal];
 
 /**
- * Modal de detalle de orden con diseño responsive.
+ * Modal con el detalle completo de un pedido. Lo usan "Mis pedidos" y el
+ * listado de órdenes del panel de administración.
+ *
+ * @param {object} [order] - Resumen ya cargado (se muestra mientras llega el detalle)
+ * @param {string} [orderId] - Id del pedido, si no se pasa `order`
+ * @param {function} onClose
  */
-function OrderDetailModal({ order, orderId, isAdmin = false, onClose }) {
-  const [orderItems, setOrderItems] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [orderDetails, setOrderDetails] = useState(order || null);
-  const [loading, setLoading] = useState(false);
-
+function OrderDetailModal({ order, orderId, onClose }) {
   const effectiveId = orderId || order?.id;
+  const [details, setDetails] = useState(null);
+  const [loading, setLoading] = useState(Boolean(effectiveId));
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (effectiveId) {
-      loadOrderDetails();
-    }
-  }, [effectiveId, isAdmin]);
+    if (!effectiveId) return;
 
-  const loadOrderDetails = async () => {
-    try {
+    let cancelled = false;
+
+    const loadDetails = async () => {
       setLoading(true);
-      const { data, error } = await getOrderById(effectiveId);
-      if (error) {
-        console.error('Error al cargar detalles:', error);
-        processOrderData(order || {});
-        return;
+      setError('');
+
+      const { data, error: detailError } = await getOrderById(effectiveId);
+
+      if (cancelled) return;
+
+      if (detailError) {
+        console.error('Error al cargar detalles:', detailError);
+        setError('No pudimos cargar el detalle completo del pedido.');
+      } else {
+        setDetails(data);
       }
-      processOrderData(data);
-      setOrderDetails(data);
-    } catch (err) {
-      console.error('Error inesperado:', err);
-      processOrderData(order || {});
-    } finally {
+
       setLoading(false);
-    }
-  };
-
-  const processOrderData = (orderData) => {
-    if (!orderData) return;
-    const items = orderData.orderItems || orderData.OrderItems || orderData.items || [];
-    setOrderItems(items);
-    if (items && items.length > 0) {
-      const calculatedTotal = items.reduce((sum, item) => {
-        const price = item.unitPrice || item.UnitPrice || 0;
-        const quantity = item.quantity || item.Quantity || 0;
-        return sum + price * quantity;
-      }, 0);
-      setTotal(calculatedTotal);
-    } else {
-      setTotal(orderData.totalAmount || orderData.TotalAmount || 0);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    try {
-      if (!dateString) return 'Fecha no disponible';
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-      return date.toLocaleDateString('es-AR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    const statusMap = {
-      pending: 'Pendiente',
-      confirmed: 'Confirmado',
-      enviado: 'Enviado',
-      delivered: 'Entregado',
-      entregado: 'Entregado',
-      cancelled: 'Cancelado',
-      cancelado: 'Cancelado',
     };
-    return statusMap[status?.toLowerCase()] || status || 'Desconocido';
-  };
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-        return 'bg-yellow-950 border border-yellow-200 text-yellow-200';
-      case 'confirmed':
-      case 'enviado':
-        return 'bg-blue-950 border border-blue-200 text-blue-200';
-      case 'delivered':
-      case 'entregado':
-        return 'bg-green-950 border border-green-200 text-green-200';
-      case 'cancelled':
-      case 'cancelado':
-        return 'bg-red-950 border border-red-200 text-red-200';
-      default:
-        return 'bg-gray-950 border border-gray-200 text-gray-200';
-    }
-  };
+    loadDetails();
 
-  const orderData = orderDetails || order || {};
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveId]);
+
+  const orderData = details || order || {};
+  const items = pick(orderData, 'items', 'Items') || pick(orderData, 'orderItems', 'OrderItems') || [];
+  const itemsTotal = items.reduce(
+    (sum, item) => sum + (pick(item, 'unitPrice', 'UnitPrice') || 0) * (pick(item, 'quantity', 'Quantity') || 0),
+    0,
+  );
+  const total = pick(orderData, 'totalAmount', 'TotalAmount') || itemsTotal;
+  const status = getOrderStatus(pick(orderData, 'status', 'Status'));
+  const shippingAddress = pick(orderData, 'shippingAddress', 'ShippingAddress');
+  const billingAddress = pick(orderData, 'billingAddress', 'BillingAddress');
+  const notes = pick(orderData, 'notes', 'Notes');
 
   return (
-    <>
-      <div
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      ></div>
+    <Modal title={`Pedido #${shortOrderNumber(effectiveId)}`} onClose={onClose} size="lg">
+      {error && <Alert tone="danger" className="mb-6">{error}</Alert>}
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl">
-          {/* Header */}
-          <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-zinc-800 bg-zinc-900 px-6 py-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                Detalle de Orden
-              </p>
-              <h2 className="text-xl font-bold text-zinc-50">
-                Orden #{orderData.id?.substring(0, 8) || effectiveId || 'N/A'}
-              </h2>
-            </div>
-            <button
-              onClick={onClose}
-              className="rounded-lg bg-zinc-900 px-3 py-2 text-lg text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
-              aria-label="Cerrar"
-            >
-              ×
-            </button>
-          </div>
-
-          <div className="space-y-6 px-6 py-5">
-            {loading ? (
-              <div className="py-10 text-center">
-                <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-zinc-600 border-t-transparent" />
-                <p className="text-zinc-200">Cargando detalles de la orden...</p>
-              </div>
-            ) : (
-              <>
-                {/* Info general */}
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-300">Fecha de Orden</p>
-                      <p className="text-zinc-50">{formatDate(orderData.date)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-300">Estado</p>
-                      <span className={`mt-1 inline-block rounded-full px-3 py-1 text-sm font-semibold ${getStatusColor(orderData.status)}`}>
-                        {getStatusLabel(orderData.status)}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-300">Cliente</p>
-                      <p className="text-zinc-50">{orderData.customerName}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-300">Total</p>
-                      <p className="text-2xl font-bold text-zinc-50">
-                        ${(orderData.totalAmount || total).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Productos */}
-                <div>
-                  <h3 className="mb-3 text-lg font-semibold text-zinc-50">Productos</h3>
-                  {orderItems && orderItems.length > 0 ? (
-                    <div className="space-y-3">
-                      {/* Encabezado desktop */}
-                      <div className="hidden grid-cols-12 gap-4 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-200 md:grid">
-                        <div className="col-span-6">Producto</div>
-                        <div className="col-span-2 text-center">Cantidad</div>
-                        <div className="col-span-2 text-right">Precio Unit.</div>
-                        <div className="col-span-2 text-right">Subtotal</div>
-                      </div>
-
-                      {orderItems.map((item, index) => {
-                        const unitPrice = item.unitPrice || item.UnitPrice || 0;
-                        const quantity = item.quantity || item.Quantity || 0;
-                        const subtotal = unitPrice * quantity;
-
-                        return (
-                          <div
-                            key={index}
-                            className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 transition hover:border-zinc-700"
-                          >
-                            <div className="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-center md:gap-4">
-                              <div className="md:col-span-6">
-                                <p className="text-base font-semibold text-zinc-50">
-                                  {item.productName || item.ProductName || `Producto ${index + 1}`}
-                                </p>
-                                <p className="mt-1 text-xs text-zinc-500">
-                                  ID: {item.productId || item.ProductId || 'N/A'}
-                                </p>
-                              </div>
-
-                              <div className="flex items-center justify-between md:col-span-2 md:block md:text-center">
-                                <span className="text-sm text-zinc-400 md:hidden">Cantidad</span>
-                                <p className="text-lg font-semibold text-zinc-50">{quantity}</p>
-                              </div>
-
-                              <div className="flex items-center justify-between md:col-span-2 md:block md:text-right">
-                                <span className="text-sm text-zinc-400 md:hidden">Precio Unit.</span>
-                                <p className="text-base font-semibold text-zinc-50">
-                                  ${unitPrice.toFixed(2)}
-                                </p>
-                              </div>
-
-                              <div className="flex items-center justify-between md:col-span-2 md:block md:text-right">
-                                <span className="text-sm text-zinc-400 md:hidden">Subtotal</span>
-                                <p className="text-lg font-bold text-zinc-50">
-                                  ${subtotal.toFixed(2)}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      <div className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-zinc-50 md:flex-row md:items-center md:justify-between">
-                        <span className="text-base font-semibold">TOTAL:</span>
-                        <span className="text-xl font-bold">${(orderData.totalAmount || total).toFixed(2)}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-6 text-center text-zinc-200">
-                      No hay informacion de productos disponible
-                    </div>
-                  )}
-                </div>
-
-                {/* Direcciones */}
-                {(orderData.shippingAddress || orderData.ShippingAddress || orderData.billingAddress || orderData.BillingAddress) && (
-                  <div className="space-y-3 border-t border-zinc-800 pt-4">
-                    <h3 className="text-lg font-semibold text-zinc-50">Informacion de Envio</h3>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      {(orderData.shippingAddress || orderData.ShippingAddress) && (
-                        <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
-                          <p className="text-sm font-semibold text-zinc-300 mb-1">Direccion de Envio</p>
-                          <p className="text-sm text-zinc-100">
-                            {formatAddress(orderData.shippingAddress || orderData.ShippingAddress)}
-                          </p>
-                        </div>
-                      )}
-                      {(orderData.billingAddress || orderData.BillingAddress) && (
-                        <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
-                          <p className="text-sm font-semibold text-zinc-300 mb-1">Direccion de Facturacion</p>
-                          <p className="text-sm text-zinc-100">
-                            {formatAddress(orderData.billingAddress || orderData.BillingAddress)}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Notas */}
-                {(orderData.notes || orderData.Notes) && (
-                  <div className="space-y-2 border-t border-zinc-800 pt-4">
-                    <h3 className="text-lg font-semibold text-zinc-50">Notas</h3>
-                    <div className="rounded-xl border border-amber-200/40 bg-amber-900/20 p-4">
-                      <p className="text-sm text-amber-100">{orderData.notes || orderData.Notes}</p>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          <div className="flex justify-end px-6 py-4 border-t border-zinc-800 bg-zinc-900">
-            <button
-              onClick={onClose}
-              className="shadow-s rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
-            >
-              Cerrar
-            </button>
-          </div>
+      <dl className="grid grid-cols-1 gap-x-8 gap-y-5 rounded-2xl bg-surface p-5 sm:grid-cols-2 dark:bg-canvas">
+        <div>
+          <dt className="text-xs font-medium text-muted">Fecha</dt>
+          <dd className="mt-1 text-[15px]">{formatDate(pick(orderData, 'date', 'Date'))}</dd>
         </div>
-      </div>
-    </>
+        <div>
+          <dt className="text-xs font-medium text-muted">Estado</dt>
+          <dd className="mt-1"><Badge tone={status.tone}>{status.label}</Badge></dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted">Cliente</dt>
+          <dd className="mt-1 text-[15px]">{pick(orderData, 'customerName', 'CustomerName') || 'No especificado'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted">Total</dt>
+          <dd className="mt-1 text-[21px] font-semibold tracking-tight">{formatPrice(total)}</dd>
+        </div>
+      </dl>
+
+      <section aria-labelledby="detalle-productos" className="mt-8">
+        <h3 id="detalle-productos" className="mb-2 text-[17px] font-semibold">Productos</h3>
+
+        {loading ? (
+          <div aria-hidden="true" className="flex flex-col gap-3 py-4">
+            <div className="h-5 w-2/3 animate-pulse rounded-full bg-surface" />
+            <div className="h-5 w-1/2 animate-pulse rounded-full bg-surface" />
+          </div>
+        ) : items.length > 0 ? (
+          <>
+            <ul className="border-t border-line">
+              {items.map((item, index) => {
+                const unitPrice = pick(item, 'unitPrice', 'UnitPrice') || 0;
+                const quantity = pick(item, 'quantity', 'Quantity') || 0;
+
+                return (
+                  <li key={pick(item, 'productId', 'ProductId') ?? index} className="flex items-start justify-between gap-4 border-b border-line py-4">
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-medium">
+                        {pick(item, 'productName', 'ProductName') || `Producto ${index + 1}`}
+                      </p>
+                      <p className="mt-0.5 text-sm text-muted">{quantity} × {formatPrice(unitPrice)}</p>
+                    </div>
+                    <p className="whitespace-nowrap text-[15px] font-medium">{formatPrice(unitPrice * quantity)}</p>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="flex justify-between pt-4 text-[17px] font-semibold">
+              <span>Total</span>
+              <span>{formatPrice(total)}</span>
+            </div>
+          </>
+        ) : (
+          <p className="py-4 text-[15px] text-muted">No hay información de productos disponible.</p>
+        )}
+      </section>
+
+      {(shippingAddress || billingAddress) && (
+        <section aria-labelledby="detalle-envio" className="mt-8 border-t border-line pt-6">
+          <h3 id="detalle-envio" className="mb-4 text-[17px] font-semibold">Envío y facturación</h3>
+          <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            {shippingAddress && (
+              <div>
+                <dt className="text-xs font-medium text-muted">Dirección de envío</dt>
+                <dd className="mt-1 text-[15px] leading-relaxed">{formatAddress(shippingAddress)}</dd>
+              </div>
+            )}
+            {billingAddress && (
+              <div>
+                <dt className="text-xs font-medium text-muted">Dirección de facturación</dt>
+                <dd className="mt-1 text-[15px] leading-relaxed">{formatAddress(billingAddress)}</dd>
+              </div>
+            )}
+          </dl>
+        </section>
+      )}
+
+      {notes && (
+        <section aria-labelledby="detalle-notas" className="mt-8 border-t border-line pt-6">
+          <h3 id="detalle-notas" className="mb-2 text-[17px] font-semibold">Notas</h3>
+          <p className="text-[15px] leading-relaxed text-muted">{notes}</p>
+        </section>
+      )}
+    </Modal>
   );
 }
 

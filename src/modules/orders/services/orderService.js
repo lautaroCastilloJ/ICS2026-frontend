@@ -67,14 +67,18 @@ export const getOrderById = async (orderId) => {
 };
 
 /**
- * Obtiene el historial de órdenes del usuario autenticado
- * 
- * @returns {Promise<{data: array, error: null | string}>} Lista de órdenes
+ * Obtiene el historial de órdenes del usuario autenticado, paginado
+ *
+ * @param {number} pageNumber - Número de página (empieza en 1)
+ * @param {number} pageSize - Cantidad de órdenes por página
+ * @returns {Promise<{data: object, error: null | string}>} PagedResult { items, totalCount, totalPages, ... }
  */
-export const getUserOrders = async () => {
+export const getUserOrders = async (pageNumber = 1, pageSize = 10) => {
   try {
     // Realizamos una petición GET al endpoint de órdenes del usuario
-    const response = await instance.get('api/orders/my-orders');
+    const response = await instance.get('api/orders/my-orders', {
+      params: { pageNumber, pageSize },
+    });
 
     // Retornamos la respuesta del servidor
     return { 

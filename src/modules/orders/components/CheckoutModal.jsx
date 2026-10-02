@@ -1,8 +1,24 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { createOrder } from "../services/orderService";
-import AddressFields from "./AddressFields";
-import { EMPTY_ADDRESS, toAddressRequest } from "../helpers/address";
+import { useId, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { createOrder } from '../services/orderService';
+import AddressFields from './AddressFields';
+import { EMPTY_ADDRESS, toAddressRequest } from '../helpers/address';
+import { formatPrice } from '../../shared/helpers/format';
+import Alert from '../../shared/ui/Alert';
+import Button from '../../shared/ui/Button';
+import Modal from '../../shared/ui/Modal';
+import TextField from '../../shared/ui/TextField';
+
+function Section({ title, children }) {
+  const titleId = useId();
+
+  return (
+    <section aria-labelledby={titleId} className="flex flex-col gap-4 border-t border-line pt-6">
+      <h3 id={titleId} className="text-[17px] font-semibold">{title}</h3>
+      {children}
+    </section>
+  );
+}
 
 /**
  * Componente CheckoutModal
@@ -15,13 +31,9 @@ import { EMPTY_ADDRESS, toAddressRequest } from "../helpers/address";
  * @returns {JSX.Element} Modal de checkout
  */
 function CheckoutModal({ cartItems, onClose, onOrderSuccess }) {
-  // Estado para el estado de carga durante el envío
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Estado para mostrar mensajes de error
-  const [error, setError] = useState("");
-
-  // Hook para manejar formularios con validación
   const {
     register,
     handleSubmit,
@@ -32,16 +44,17 @@ function CheckoutModal({ cartItems, onClose, onOrderSuccess }) {
       shippingAddress: { ...EMPTY_ADDRESS },
       sameBillingAddress: true,
       billingAddress: { ...EMPTY_ADDRESS },
-      cardholderName: "",
-      cardNumber: "",
-      expiryDate: "",
-      cvv: "",
-      notes: "",
+      cardholderName: '',
+      cardNumber: '',
+      expiryDate: '',
+      cvv: '',
+      notes: '',
     },
   });
 
   // Si la facturacion usa la misma direccion, no se muestran sus campos
-  const sameBillingAddress = watch("sameBillingAddress");
+  const sameBillingAddress = watch('sameBillingAddress');
+  const total = cartItems.reduce((sum, item) => sum + item.currentUnitPrice * item.quantity, 0);
 
   /**
    * Maneja el envío del formulario de checkout
@@ -50,294 +63,175 @@ function CheckoutModal({ cartItems, onClose, onOrderSuccess }) {
   const onSubmit = async (formData) => {
     try {
       setLoading(true);
-      setError("");
+      setError('');
 
       const shippingAddress = toAddressRequest(formData.shippingAddress);
       const billingAddress = formData.sameBillingAddress
         ? shippingAddress
         : toAddressRequest(formData.billingAddress);
 
-      // Llamamos al servicio para crear la orden con los datos completos
       const { data, error: orderError } = await createOrder(
         cartItems,
         shippingAddress,
         billingAddress,
-        formData.notes || "Sin notas adicionales"
+        formData.notes || 'Sin notas adicionales',
       );
 
       if (orderError) {
-        setError(orderError || "Error al procesar la orden");
+        setError(orderError || 'Error al procesar la orden');
+
         return;
       }
 
-      // Si es exitoso, llamamos al callback
       onOrderSuccess(data);
     } catch (err) {
-      setError("Error inesperado al procesar la orden");
-      console.error("Unexpected error:", err);
+      setError('Error inesperado al procesar la orden');
+      console.error('Unexpected error:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Mientras se envia la orden no se puede cerrar el dialogo.
+  const handleClose = () => {
+    if (!loading) onClose();
+  };
+
   return (
-    <>
-      {/* Fondo con efecto blur */}
-      <div
-        className="fixed inset-0 backdrop-blur-sm bg-black/30 z-40"
-        onClick={onClose}
-      ></div>
+    <Modal title="Finalizar compra" onClose={handleClose} size="lg">
+      {error && <Alert tone="danger" className="mb-6">{error}</Alert>}
 
-      {/* Modal */}
-      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-        <div className="bg-zinc-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-          {/* Header del modal */}
-          <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-zinc-900">
-            <h2 className="text-2xl font-bold text-zinc-50">Checkout</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-50 hover:text-gray-400 text-2xl"
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Contenido del modal */}
-          <div className="p-6">
-            {/* Mostrar error si existe */}
-            {error && (
-              <div className="bg-red-950 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-                {error}
-              </div>
-            )}
-
-            {/* Resumen de compra */}
-            <div className="bg-zinc-900 rounded-lg p-4 mb-6  shadow-s text-white">
-              <h3 className="font-semibold text-zinc-50 mb-3">
-                Resumen de Compra
-              </h3>
-              <div className="space-y-2 mb-3">
-                {cartItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex justify-between text-sm text-zinc-50"
-                  >
-                    <span>
-                      {item.name} x{item.quantity}
-                    </span>
-                    <span>
-                      ${(item.currentUnitPrice * item.quantity).toFixed(2)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t border-gray-200 pt-2 font-semibold text-gray-50 flex justify-between">
-                <span>Total:</span>
-                <span>
-                  $
-                  {cartItems.reduce(
-                    (total, item) =>
-                      total + item.currentUnitPrice * item.quantity,
-                    0
-                  ).toFixed(2)}
-                </span>
-              </div>
-            </div>
-
-            {/* Formulario */}
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" >
-              {/* Sección: Dirección de Envío */}
-              <div className="border-t border-gray-200 pt-6">
-                <h3 className="text-lg font-semibold text-zinc-50 mb-4">
-                  Dirección de Envío
-                </h3>
-
-                <AddressFields
-                  name="shippingAddress"
-                  register={register}
-                  errors={errors.shippingAddress}
-                />
-              </div>
-
-              {/* Sección: Dirección de Facturación */}
-              <div className="border-t border-gray-200 pt-6">
-                <h3 className="text-lg font-semibold text-zinc-50 mb-4">
-                  Dirección de Facturación
-                </h3>
-
-                <label className="flex items-center gap-2 text-zinc-50 mb-4 cursor-pointer">
-                  <input type="checkbox" {...register("sameBillingAddress")} />
-                  Usar la misma dirección de envío
-                </label>
-
-                {!sameBillingAddress && (
-                  <AddressFields
-                    name="billingAddress"
-                    register={register}
-                    errors={errors.billingAddress}
-                    shouldUnregister
-                  />
-                )}
-              </div>
-
-              {/* Sección: Información de Tarjeta */}
-              <div className="border-t border-gray-200 pt-6">
-                <h3 className="text-lg font-semibold text-zinc-50 mb-4">
-                  Información de Pago
-                </h3>
-
-                {/* Nombre del Titular */}
-                <div className="mb-4">
-                  <label className="block text-zinc-50 font-semibold mb-2">
-                    Nombre del Titular *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("cardholderName", {
-                      required: "El nombre del titular es obligatorio",
-                    })}
-                    className={`w-full placeholder:text-zinc-400 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-50 text-zinc-50 ${
-                      errors.cardholderName
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
-                    placeholder="Nombre completo del titular"
-                  />
-                  {errors.cardholderName && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.cardholderName.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Número de Tarjeta */}
-                <div className="mb-4">
-                  <label className="block text-zinc-50 font-semibold mb-2">
-                    Número de Tarjeta *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("cardNumber", {
-                      required: "El número de tarjeta es obligatorio",
-                      pattern: {
-                        value: /^\d{13,19}$/,
-                        message: "Número de tarjeta inválido (13-19 dígitos)",
-                      },
-                    })}
-                    className={`w-full placeholder:text-zinc-400 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-50 text-zinc-50 ${
-                      errors.cardNumber ? "border-red-500" : "border-gray-300"
-                    }`}
-                    placeholder="1234 5678 9012 3456"
-                    maxLength="19"
-                  />
-                  {errors.cardNumber && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.cardNumber.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Fecha de Vencimiento y CVV */}
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Fecha de Vencimiento */}
-                  <div>
-                    <label className="block text-zinc-50 font-semibold mb-2">
-                      Vencimiento (MM/AA) *
-                    </label>
-                    <input
-                      type="text"
-                      {...register("expiryDate", {
-                        required: "La fecha de vencimiento es obligatoria",
-                        pattern: {
-                          value: /^(0[1-9]|1[0-2])\/\d{2}$/,
-                          message: "Formato: MM/AA",
-                        },
-                      })}
-                      className={`w-full placeholder:text-zinc-400 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-50 text-zinc-50 ${
-                        errors.expiryDate ? "border-red-500" : "border-gray-300"
-                      }`}
-                      placeholder="12/25"
-                      maxLength="5"
-                    />
-                    {errors.expiryDate && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.expiryDate.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* CVV */}
-                  <div>
-                    <label className="block text-zinc-50 font-semibold mb-2">
-                      CVV *
-                    </label>
-                    <input
-                      type="text"
-                      {...register("cvv", {
-                        required: "El CVV es obligatorio",
-                        pattern: {
-                          value: /^\d{3,4}$/,
-                          message: "CVV inválido (3-4 dígitos)",
-                        },
-                      })}
-                      className={`w-full px-4 placeholder:text-zinc-400 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-50 text-zinc-50 ${
-                        errors.cvv ? "border-red-500" : "border-gray-300"
-                      }`}
-                      placeholder="123"
-                      maxLength="4"
-                    />
-                    {errors.cvv && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.cvv.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Sección: Notas */}
-              <div className="border-t border-gray-200 pt-6">
-                <h3 className="text-lg font-semibold text-zinc-50 mb-4">
-                  Notas Adicionales
-                </h3>
-
-                <div>
-                  <label className="block text-zinc-50 font-semibold mb-2">
-                    Notas (Opcional)
-                  </label>
-                  <textarea
-                    {...register("notes")}
-                    className="w-full px-4 py-2 border placeholder:text-zinc-400 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-50 text-zinc-50"
-                    placeholder="Ej: Entregar después de las 18:00, dejar en recepción, etc."
-                    rows="3"
-                  />
-                </div>
-              </div>
-
-              {/* Botón de compra */}
-              <div className="border-t border-gray-200 pt-6 flex gap-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 bg-gray-200 hover:bg-red-950 text-zinc-950 hover:text-red-400 font-semibold py-2 rounded-lg transition"
-                  disabled={loading}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 w-full shadow-s p-4 bg-zinc-900 hover:bg-zinc-50 hover:text-zinc-900 disabled:bg-gray-400 disabled:cursor-not-allowed
-                               text-white font-bold py-3 rounded-lg  transition "
-                  disabled={loading}
-                >
-                  {loading ? "Procesando..." : "Confirmar Compra"}
-                </button>
-              </div>
-            </form>
-          </div>
+      {/* Resumen de compra */}
+      <div className="mb-6 rounded-2xl bg-surface p-5 dark:bg-canvas">
+        <h3 className="mb-3 text-[15px] font-semibold">Resumen</h3>
+        <ul className="mb-3 flex flex-col gap-2">
+          {cartItems.map((item) => (
+            <li key={item.id} className="flex justify-between gap-4 text-sm">
+              <span className="text-muted">
+                {item.name} <span aria-label={`${item.quantity} unidades`}>× {item.quantity}</span>
+              </span>
+              <span>{formatPrice(item.currentUnitPrice * item.quantity)}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="flex justify-between border-t border-line-strong pt-3 font-semibold">
+          <span>Total</span>
+          <span>{formatPrice(total)}</span>
         </div>
       </div>
-    </>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6" noValidate>
+        <Section title="Dirección de envío">
+          <AddressFields name="shippingAddress" register={register} errors={errors.shippingAddress} />
+        </Section>
+
+        <Section title="Dirección de facturación">
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px]">
+            <input
+              type="checkbox"
+              className="size-5 rounded-md p-0 accent-accent shadow-none hover:shadow-none"
+              {...register('sameBillingAddress')}
+            />
+            Usar la misma dirección de envío
+          </label>
+
+          {!sameBillingAddress && (
+            <AddressFields
+              name="billingAddress"
+              register={register}
+              errors={errors.billingAddress}
+              shouldUnregister
+            />
+          )}
+        </Section>
+
+        {/*
+          La pasarela de pagos todavia no esta integrada: los datos de la tarjeta
+          son opcionales y createOrder no los envia. Si se completan, se valida
+          el formato (react-hook-form no aplica `pattern` a campos vacios).
+        */}
+        <Section title="Pago">
+          <Alert tone="info">
+            El pago en línea todavía no está disponible: podés confirmar el pedido sin completar estos datos.
+            No se envían ni se guardan.
+          </Alert>
+          <TextField
+            label="Nombre del titular"
+            hint="Opcional"
+            autoComplete="cc-name"
+            placeholder="Como figura en la tarjeta"
+            error={errors.cardholderName?.message}
+            {...register('cardholderName')}
+          />
+          <TextField
+            label="Número de tarjeta"
+            hint="Opcional"
+            inputMode="numeric"
+            autoComplete="cc-number"
+            placeholder="1234 5678 9012 3456"
+            maxLength={19}
+            error={errors.cardNumber?.message}
+            {...register('cardNumber', {
+              pattern: {
+                value: /^\d{13,19}$/,
+                message: 'Número de tarjeta inválido (13-19 dígitos)',
+              },
+            })}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <TextField
+              label="Vencimiento"
+              hint="Opcional"
+              autoComplete="cc-exp"
+              placeholder="MM/AA"
+              maxLength={5}
+              error={errors.expiryDate?.message}
+              {...register('expiryDate', {
+                pattern: {
+                  value: /^(0[1-9]|1[0-2])\/\d{2}$/,
+                  message: 'Formato: MM/AA',
+                },
+              })}
+            />
+            <TextField
+              label="CVV"
+              hint="Opcional"
+              inputMode="numeric"
+              autoComplete="cc-csc"
+              placeholder="123"
+              maxLength={4}
+              error={errors.cvv?.message}
+              {...register('cvv', {
+                pattern: {
+                  value: /^\d{3,4}$/,
+                  message: 'CVV inválido (3-4 dígitos)',
+                },
+              })}
+            />
+          </div>
+        </Section>
+
+        <Section title="Notas">
+          <TextField
+            label="Notas para la entrega"
+            hint="Opcional"
+            multiline
+            rows={3}
+            placeholder="Ej: entregar después de las 18:00, dejar en recepción, etc."
+            {...register('notes')}
+          />
+        </Section>
+
+        <div className="flex flex-col-reverse gap-3 border-t border-line pt-6 sm:flex-row sm:justify-end">
+          <Button variant="secondary" size="lg" onClick={handleClose} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button type="submit" size="lg" disabled={loading}>
+            {loading ? 'Procesando…' : 'Confirmar compra'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

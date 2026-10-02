@@ -1,4 +1,5 @@
 import { ADDRESS_RULES, POSTAL_CODE_PATTERN } from '../helpers/address';
+import TextField from '../../shared/ui/TextField';
 
 /**
  * Campos de una direccion (Value Object Address) para react-hook-form.
@@ -31,27 +32,19 @@ function AddressFields({ name, register, errors = {}, shouldUnregister = false }
   };
 
   const renderField = (field, className = '') => (
-    <div className={className}>
-      <label className="block text-zinc-50 font-semibold mb-2">
-        {ADDRESS_RULES[field].label} *
-      </label>
-      <input
-        type="text"
-        { ...register(`${name}.${field}`, fieldRules(field)) }
-        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-50 placeholder:text-zinc-400 text-zinc-50 ${
-          errors[field] ? 'border-red-500' : 'border-gray-300'
-        }`}
-        placeholder={ADDRESS_RULES[field].placeholder}
-        maxLength={ADDRESS_RULES[field].maxLength}
-      />
-      {errors[field] && (
-        <p className="text-red-500 text-sm mt-1">{errors[field].message}</p>
-      )}
-    </div>
+    <TextField
+      className={className}
+      label={ADDRESS_RULES[field].label}
+      required
+      error={errors[field]?.message}
+      placeholder={ADDRESS_RULES[field].placeholder}
+      maxLength={ADDRESS_RULES[field].maxLength}
+      {...register(`${name}.${field}`, fieldRules(field))}
+    />
   );
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       {renderField('street', 'sm:col-span-2')}
       {renderField('number')}
       {renderField('city')}

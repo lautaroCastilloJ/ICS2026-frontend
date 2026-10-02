@@ -34,6 +34,22 @@ export const readCart = () => {
   }
 };
 
+// Avisa a la pagina (contador del Header) que el carrito cambio. El evento
+// 'storage' solo llega a OTRAS pestanas, por eso se emite uno propio.
+export const CART_CHANGE_EVENT = 'cart:change';
+
+export const writeCart = (cart) => {
+  if (cart.length === 0) {
+    localStorage.removeItem('cart');
+  } else {
+    localStorage.setItem('cart', JSON.stringify(cart));
+  }
+
+  window.dispatchEvent(new Event(CART_CHANGE_EVENT));
+};
+
+export const countCartItems = (cart) => cart.reduce((total, item) => total + item.quantity, 0);
+
 export const refreshCart = async (cart, getProduct) => {
   const items = await Promise.all(normalizeCart(cart).map(async (item) => {
     try {

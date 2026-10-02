@@ -1,305 +1,169 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../shared/components/Header';
+import Footer from '../../shared/components/Footer';
 import { getUserOrders } from '../services/orderService';
 import OrderDetailModal from '../components/OrderDetailModal';
-import useAuth from '../../auth/hook/useAuth';
+import { getOrderStatus, shortOrderNumber } from '../helpers/orderStatus';
+import { formatDate, formatPrice } from '../../shared/helpers/format';
+import Alert from '../../shared/ui/Alert';
+import Badge from '../../shared/ui/Badge';
+import Button, { ButtonLink } from '../../shared/ui/Button';
+import Pagination from '../../shared/ui/Pagination';
+
+// Cantidad de pedidos por pagina
+const PAGE_SIZE = 5;
 
 /**
- * Página de Historial de Órdenes
- * 
+ * Página de Historial de Pedidos
+ *
  * Muestra:
- * - Lista de todas las órdenes del usuario autenticado
- * - Detalles de cada orden (ID, fecha, total, estado)
- * - Opción para ver detalles completos de cada orden
- * 
+ * - Lista paginada de los pedidos del usuario autenticado
+ * - Número, fecha, total y estado de cada pedido
+ * - Opción para ver el detalle completo de cada pedido
+ *
  * @component
- * @returns {JSX.Element} Página del historial de órdenes
+ * @returns {JSX.Element} Página del historial de pedidos
  */
 function OrdersHistoryPage() {
-  // Estado para almacenar las órdenes del usuario
   const [orders, setOrders] = useState([]);
-  
-  // Estado para mostrar mensajes de carga
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalOrders, setTotalOrders] = useState(0);
   const [loading, setLoading] = useState(true);
-  
-  // Estado para mostrar mensajes de error
   const [error, setError] = useState(null);
-  
-  // Estado para la orden seleccionada para ver detalle
   const [selectedOrder, setSelectedOrder] = useState(null);
-  
-  // Hook para navegar entre páginas
+
   const navigate = useNavigate();
-  
-  // Hook para obtener el estado de autenticación
-  const { isAuthenticated } = useAuth();
-  
-  // Obtenemos el token para saber si el usuario está autenticado
   const token = localStorage.getItem('token');
 
   /**
-   * Efecto que se ejecuta al cargar la página
-   * Carga las órdenes del usuario desde el backend
+   * Carga una página de pedidos del usuario desde el backend
    */
-  useEffect(() => {
-    // Si el usuario no está autenticado, redirige a inicio
-    if (!token) {
-      navigate('/');
-      return;
-    }
-
-    loadOrders();
-  }, [isAuthenticated, token]);
-
-  /**
-   * Carga las órdenes del usuario desde el backend
-   */
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Llamamos al servicio para obtener las órdenes
-      const { data, error: ordersError } = await getUserOrders();
+      const { data, error: ordersError } = await getUserOrders(page, PAGE_SIZE);
 
       if (ordersError) {
-        setError(ordersError || 'Error al cargar las órdenes');
+        setError(ordersError || 'Error al cargar tus pedidos.');
+
         return;
       }
 
-      // Establecemos las órdenes en el estado
-      // Si data es un array, lo usamos directamente, si es un objeto con items, extraemos los items
-      const ordersData = Array.isArray(data) ? data : data?.items || [];
-      setOrders(ordersData);
+      // El backend devuelve un PagedResult; se acepta tambien un array plano.
+      const items = Array.isArray(data) ? data : data?.items || [];
+      const total = data?.totalCount ?? items.length;
+
+      setOrders(items);
+      setTotalOrders(total);
+      setTotalPages(data?.totalPages || Math.max(1, Math.ceil(total / PAGE_SIZE)));
     } catch (err) {
-      setError('Error inesperado al cargar las órdenes');
+      setError('Error inesperado al cargar tus pedidos.');
       console.error('Error loading orders:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page]);
 
-  /**
-   * Formatea una fecha a formato legible
-   * @param {string} dateString - Fecha en formato ISO
-   * @returns {string} Fecha formateada
-   */
-  const formatDate = (dateString) => {
-    try {
-      // Si no hay fecha, retornar vacío
-      if (!dateString) return 'Fecha no disponible';
-      
-      const date = new Date(dateString);
-      
-      // Verificar si es una fecha válida
-      if (isNaN(date.getTime())) {
-        return dateString; // Retornar la cadena original si no es válida
-      }
-      
-      return date.toLocaleDateString('es-AR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateString;
+  useEffect(() => {
+    // Si el usuario no está autenticado, redirige a inicio
+    if (!token) {
+      navigate('/');
+
+      return;
     }
-  };
 
-  /**
-   * Retorna el color de fondo según el estado de la orden
-   * @param {string} status - Estado de la orden
-   * @returns {string} Clase de Tailwind para el color de fondo
-   */
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-        return 'bg-yellow-950 border-yellow-200 text-yellow-200';
-      case 'confirmed':
-      case 'enviado':
-        return 'bg-blue-950 border-blue-200 text-blue-200';
-      case 'delivered':
-      case 'entregado':
-        return 'bg-green-950 border-green-200 text-green2900';
-      case 'cancelled':
-      case 'cancelado':
-        return 'bg-red-950 border-red-200 text-red-200';
-      default:
-        return 'bg-zinc-900 border-gray-200 text-gray-800';
-    }
-  };
+    loadOrders();
+  }, [token, navigate, loadOrders]);
 
-  /**
-   * Retorna el texto del estado en español
-   * @param {string} status - Estado en inglés
-   * @returns {string} Estado en español
-   */
-  const getStatusLabel = (status) => {
-    const statusMap = {
-      pending: 'Pendiente',
-      confirmed: 'Confirmado',
-      enviado: 'Enviado',
-      delivered: 'Entregado',
-      entregado: 'Entregado',
-      cancelled: 'Cancelado',
-      cancelado: 'Cancelado',
-    };
-    return statusMap[status?.toLowerCase()] || status || 'Desconocido';
+  const goToPage = (nextPage) => {
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <div className="min-h-screen bg-zinc-900">
-      {/* Header */}
+    <div className="flex min-h-dvh flex-col">
       <Header />
 
-      {/* Contenido principal */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Título */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-zinc-50 mb-2">
-            Historial de Órdenes
-          </h1>
-          <p className="text-zinc-400">
-            Visualiza el estado de todas tus compras
-          </p>
-        </div>
+      <main className="mx-auto w-full max-w-4xl flex-1 px-4 pb-28 pt-12 sm:px-6 sm:pt-18">
+        <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Mis pedidos.</h1>
+        <p className="mt-3 text-[17px] text-muted sm:text-[19px]">Seguí el estado de todas tus compras.</p>
 
-        {/* Mostrar error si existe */}
         {error && (
-          <div className="bg-red-950 border border-red-700 text-red-700 px-6 py-4 rounded-lg mb-8">
-            {error}
-            <button
-              onClick={loadOrders}
-              className="ml-4 underline hover:no-underline font-semibold"
-            >
+          <Alert tone="danger" className="mt-10">
+            {error}{' '}
+            <Button variant="link" size="sm" className="h-auto align-baseline text-danger" onClick={loadOrders}>
               Reintentar
-            </button>
-          </div>
+            </Button>
+          </Alert>
         )}
 
-        {/* Loading */}
         {loading && (
-          <div className="bg-gray-100 rounded-lg p-12 text-center">
-            <p className="text-zinc-50 text-lg mb-4">
-              Cargando órdenes...
-            </p>
-            <div className="inline-block animate-spin">
-              <div className="h-8 w-8 border-4 border-white border-t-transparent rounded-full"></div>
-            </div>
-          </div>
-        )}
-
-        {/* Sin órdenes */}
-        {!loading && orders.length === 0 && !error && (
-          <div className="bg-gray-100 rounded-lg p-12 text-center">
-            <p className="text-zinc-50 text-lg mb-4">
-              No tienes órdenes aún
-            </p>
-            <button
-              onClick={() => navigate('/')}
-              className="shadow-s rounded-xl p-4 bg-zinc-900 text-white font-semibold hover:bg-zinc-800 transition"
-            >
-              Ir a Comprar
-            </button>
-          </div>
-        )}
-
-        {/* Lista de órdenes */}
-        {!loading && orders.length > 0 && (
-          <div className="space-y-4">
-            {orders.map((order) => (
-              <div key={order.id} className="bg-zinc-900 rounded-lg shadow-s overflow-hidden">
-                
-                {/* Encabezado de la orden */}
-                <div className="px-6 py-4  ">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
-                    
-                    {/* ID de la orden */}
-                    <div>
-                      <p className="text-xs text-zinc-50 font-semibold uppercase tracking-wide">Número de Orden</p>
-                      <p className="text-zinc-50 font-mono text-sm break-all mt-1">
-                        {order.id}
-                      </p>
-                    </div>
-
-                    {/* Fecha */}
-                    <div>
-                      <p className="text-xs text-zinc-50 font-semibold uppercase tracking-wide">Fecha</p>
-                      <p className="text-zinc-50 mt-1">
-                        {formatDate(order.date)}
-                      </p>
-                    </div>
-
-                    {/* Total */}
-                    <div>
-                      <p className="text-xs text-zinc-50 font-semibold uppercase tracking-wide">Total</p>
-                      <p className="text-zinc-50 font-semibold text-2xl mt-1">
-                        ${(order.totalAmount || 0).toFixed(2)}
-                      </p>
-                    </div>
-
-                    {/* Estado */}
-                    <div>
-                      <p className="text-xs text-zinc-50 font-semibold uppercase tracking-wide">Estado</p>
-                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold border mt-1 ${getStatusColor(order.status)}`}>
-                        {getStatusLabel(order.status)}
-                      </span>
-                    </div>
-                  </div>
-                {/* Información del cliente */}
-                <div className="px-6 py-4 border-b border-gray-200 bg-zinc-900">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Nombre del cliente */}
-                    <div>
-                      <p className="text-sm text-zinc-50 font-semibold mb-1">Cliente</p>
-                      <p className="text-zinc-50">
-                        {order.customerName || 'No especificado'}
-                      </p>
-                    </div>
-
-                    {/* ID del cliente */}
-                    <div>
-                      <p className="text-sm text-zinc-50 font-semibold mb-1">ID del Cliente</p>
-                      <p className="text-zinc-50 font-mono text-sm">
-                        {order.customerId || 'No especificado'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                </div>
-
-
-                {/* Botones de acción */}
-                <div className="px-6 py-4 flex gap-3 justify-end">
-                  <button
-                    onClick={() => setSelectedOrder(order)}
-                    className="shadow-s rounded-xl p-4 bg-zinc-900 text-white font-semibold hover:bg-zinc-800 transition text-sm"
-                  >
-                    Ver Detalle
-                  </button>
-                  <button
-                    onClick={() => navigate('/')}
-                    className="shadow-s rounded-xl p-4 bg-zinc-900 text-white font-semibold hover:bg-zinc-800 transition text-sm"
-                  >
-                    Comprar Más
-                  </button>
-                </div>
-              </div>
+          <ul aria-hidden="true" className="mt-12 border-t border-line">
+            {Array.from({ length: 3 }, (_, index) => (
+              <li key={index} className="flex animate-pulse flex-col gap-3 border-b border-line py-7">
+                <div className="h-5 w-40 rounded-full bg-surface" />
+                <div className="h-4 w-64 rounded-full bg-surface" />
+              </li>
             ))}
+          </ul>
+        )}
+
+        {!loading && !error && orders.length === 0 && (
+          <div className="flex flex-col items-center gap-6 py-24 text-center">
+            <p className="text-[21px] text-muted">Todavía no hiciste ningún pedido.</p>
+            <ButtonLink to="/" size="lg">Ir al catálogo</ButtonLink>
           </div>
+        )}
+
+        {!loading && orders.length > 0 && (
+          <>
+            <p className="mb-5 mt-12 text-sm text-muted">
+              {totalOrders} {totalOrders === 1 ? 'pedido' : 'pedidos'}
+            </p>
+
+            <ul className="border-t border-line">
+              {orders.map((order) => {
+                const status = getOrderStatus(order.status);
+
+                return (
+                  <li
+                    key={order.id}
+                    className="flex flex-col gap-4 border-b border-line py-7 sm:flex-row sm:items-center sm:justify-between sm:gap-8"
+                  >
+                    <div className="flex min-w-0 flex-col gap-1.5">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h2 className="text-[19px] font-semibold tracking-tight">
+                          Pedido #{shortOrderNumber(order.id)}
+                        </h2>
+                        <Badge tone={status.tone}>{status.label}</Badge>
+                      </div>
+                      <p className="text-sm text-muted">{formatDate(order.date)}</p>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-6 sm:justify-end">
+                      <p className="text-[19px] font-medium">{formatPrice(order.totalAmount || 0)}</p>
+                      <Button variant="secondary" onClick={() => setSelectedOrder(order)}>
+                        Ver detalle
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <Pagination className="mt-14" page={page} totalPages={totalPages} onPageChange={goToPage} />
+          </>
         )}
       </main>
 
-      {/* Modal de detalle de orden */}
+      <Footer />
+
       {selectedOrder && (
-        <OrderDetailModal 
-          order={selectedOrder}
-          onClose={() => setSelectedOrder(null)}
-        />
+        <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
       )}
     </div>
   );

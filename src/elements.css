@@ -1,5 +1,11 @@
-@import "tailwindcss";
+@reference "tailwindcss";
 
+/*
+ * Estilos heredados del diseno anterior. Los usan las pantallas que todavia no
+ * migraron a los componentes de src/modules/shared/ui (panel de administracion,
+ * login y pedidos). Los componentes nuevos los anulan con sus propias
+ * utilidades; cuando no queden pantallas viejas, este archivo se elimina.
+ */
 @layer base {
   button {
     @apply p-1 cursor-pointer rounded-md shadow overflow-hidden;
@@ -11,9 +17,6 @@
 
   select {
     @apply border border-gray-200 rounded-md p-1.5 hover:shadow;
-  }
-  html {
-    font-family: "Inter", sans-serif;
   }
 }
 
@@ -39,4 +42,3 @@
       0 6px 10px #00000015;
   }
 }
-
