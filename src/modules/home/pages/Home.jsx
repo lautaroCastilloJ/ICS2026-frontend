@@ -102,7 +102,6 @@ function Home() {
       <main className="flex-1">
         {/* Encabezado con buscador */}
         <section className="px-4 pb-12 pt-16 text-center sm:px-6 sm:pb-16 sm:pt-24">
-          <p className="mb-3 text-[15px] font-medium text-muted">Catálogo</p>
           <h1 className="text-[40px] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-[64px]">
             Productos.
           </h1>

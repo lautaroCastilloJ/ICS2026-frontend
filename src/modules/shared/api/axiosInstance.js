@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { expireSession, getValidToken } from '../../auth/helpers/session';
 
 const instance = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL,
@@ -7,7 +8,8 @@ const instance = axios.create({
 
 instance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    // Un token vencido no se envia: getValidToken lo descarta.
+    const token = getValidToken();
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -26,7 +28,9 @@ instance.interceptors.response.use(
         localStorage.clear();
         window.location.href = '/login';
       } else {
-        localStorage.removeItem('token');
+        // Avisar a AuthProvider: sin esto el Header seguia mostrando la sesion
+        // abierta aunque el token ya no existiera.
+        expireSession();
       }
     }
 

@@ -1,15 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Header from '../../shared/components/Header';
 import Footer from '../../shared/components/Footer';
 import { getUserOrders } from '../services/orderService';
 import OrderDetailModal from '../components/OrderDetailModal';
+import AuthModal from '../../auth/components/AuthModal';
+import useAuth from '../../auth/hook/useAuth';
+import { ROLES } from '../../shared/constants/roles';
 import { getOrderStatus, shortOrderNumber } from '../helpers/orderStatus';
 import { formatDate, formatPrice } from '../../shared/helpers/format';
 import Alert from '../../shared/ui/Alert';
 import Badge from '../../shared/ui/Badge';
 import Button, { ButtonLink } from '../../shared/ui/Button';
 import Pagination from '../../shared/ui/Pagination';
+import { ReceiptIcon } from '../../shared/ui/icons';
 
 // Cantidad de pedidos por pagina
 const PAGE_SIZE = 5;
@@ -33,9 +36,12 @@ function OrdersHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const navigate = useNavigate();
-  const token = localStorage.getItem('token');
+  // AuthProvider decide si hay sesion (un token vencido no cuenta).
+  const { isAuthenticated } = useAuth();
+  const isAdmin = isAuthenticated && localStorage.getItem('role') === ROLES.ADMIN;
+  const canLoadOrders = isAuthenticated && !isAdmin;
 
   /**
    * Carga una página de pedidos del usuario desde el backend
@@ -69,15 +75,12 @@ function OrdersHistoryPage() {
   }, [page]);
 
   useEffect(() => {
-    // Si el usuario no está autenticado, redirige a inicio
-    if (!token) {
-      navigate('/');
-
-      return;
-    }
+    // Sin sesion de cliente no se consulta: la pagina explica que hacer
+    // (antes redirigia al inicio sin aviso).
+    if (!canLoadOrders) return;
 
     loadOrders();
-  }, [token, navigate, loadOrders]);
+  }, [canLoadOrders, loadOrders]);
 
   const goToPage = (nextPage) => {
     setPage(nextPage);
@@ -92,7 +95,25 @@ function OrdersHistoryPage() {
         <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Mis pedidos.</h1>
         <p className="mt-3 text-[17px] text-muted sm:text-[19px]">Seguí el estado de todas tus compras.</p>
 
-        {error && (
+        {!isAuthenticated && (
+          <div className="mt-12 flex flex-col items-center gap-5 rounded-3xl bg-surface px-6 py-16 text-center">
+            <ReceiptIcon size={32} className="text-muted" />
+            <div>
+              <p className="text-[21px] font-semibold tracking-tight">Iniciá sesión para ver tus pedidos</p>
+              <p className="mt-2 text-[15px] text-muted">Si ya habías ingresado, tu sesión venció por seguridad.</p>
+            </div>
+            <Button size="lg" onClick={() => setShowAuthModal(true)}>Iniciar sesión</Button>
+          </div>
+        )}
+
+        {isAdmin && (
+          <Alert tone="info" className="mt-10">
+            Las cuentas de administrador no hacen pedidos. Para ver los de los clientes, entrá al{' '}
+            <ButtonLink to="/admin/orders" variant="link" size="sm" className="h-auto align-baseline">panel de administración</ButtonLink>.
+          </Alert>
+        )}
+
+        {canLoadOrders && error && (
           <Alert tone="danger" className="mt-10">
             {error}{' '}
             <Button variant="link" size="sm" className="h-auto align-baseline text-danger" onClick={loadOrders}>
@@ -101,7 +122,7 @@ function OrdersHistoryPage() {
           </Alert>
         )}
 
-        {loading && (
+        {canLoadOrders && loading && (
           <ul aria-hidden="true" className="mt-12 border-t border-line">
             {Array.from({ length: 3 }, (_, index) => (
               <li key={index} className="flex animate-pulse flex-col gap-3 border-b border-line py-7">
@@ -112,14 +133,14 @@ function OrdersHistoryPage() {
           </ul>
         )}
 
-        {!loading && !error && orders.length === 0 && (
+        {canLoadOrders && !loading && !error && orders.length === 0 && (
           <div className="flex flex-col items-center gap-6 py-24 text-center">
             <p className="text-[21px] text-muted">Todavía no hiciste ningún pedido.</p>
             <ButtonLink to="/" size="lg">Ir al catálogo</ButtonLink>
           </div>
         )}
 
-        {!loading && orders.length > 0 && (
+        {canLoadOrders && !loading && orders.length > 0 && (
           <>
             <p className="mb-5 mt-12 text-sm text-muted">
               {totalOrders} {totalOrders === 1 ? 'pedido' : 'pedidos'}
@@ -161,6 +182,8 @@ function OrdersHistoryPage() {
       </main>
 
       <Footer />
+
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
 
       {selectedOrder && (
         <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />

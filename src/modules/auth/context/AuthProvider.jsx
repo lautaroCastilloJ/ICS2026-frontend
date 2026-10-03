@@ -1,15 +1,36 @@
-import { createContext, useState } from 'react';
+import { createContext, useEffect, useState } from 'react';
 import { login } from '../services/login';
 import { signup } from '../services/signup';
+import { SESSION_EXPIRED_EVENT, getValidToken } from '../helpers/session';
 
 const AuthContext = createContext();
 
-function AuthProvider({ children }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const token = localStorage.getItem('token');
+// Cada cuanto se revisa si el token vencio con la app abierta.
+const EXPIRY_CHECK_MS = 60 * 1000;
 
-    return Boolean(token);
-  });
+function AuthProvider({ children }) {
+  // Un token vencido no cuenta como sesion (getValidToken lo descarta).
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getValidToken()));
+
+  useEffect(() => {
+    // 401 de la API (interceptor de axios): la sesion termino.
+    const handleExpired = () => setIsAuthenticated(false);
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleExpired);
+
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleExpired);
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // El token tambien vence sin hacer requests (dura Jwt:ExpireInMinutes).
+    const timer = setInterval(() => {
+      if (!getValidToken()) setIsAuthenticated(false);
+    }, EXPIRY_CHECK_MS);
+
+    return () => clearInterval(timer);
+  }, [isAuthenticated]);
 
   const singout = () => {
     // Eliminar token de autenticación
@@ -18,7 +39,7 @@ function AuthProvider({ children }) {
 
     // Limpiar el carrito de compras
     localStorage.removeItem('cart');
-    
+
     // Actualizar estado de autenticación
     setIsAuthenticated(false);
   };

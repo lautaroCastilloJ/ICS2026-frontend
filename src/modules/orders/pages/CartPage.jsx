@@ -44,7 +44,6 @@ function CartPage() {
 
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const token = localStorage.getItem('token');
   const hasMissingPrices = cartItems.some((item) => item.currentUnitPrice === null);
   const hasStockProblems = cartItems.some((item) => !canPurchaseItem(item));
   const itemCount = countCartItems(cartItems);
@@ -113,7 +112,7 @@ function CartPage() {
       return;
     }
 
-    if (!token) {
+    if (!isAuthenticated) {
       setShowAuthModal(true);
 
       return;
@@ -269,7 +268,7 @@ function CartPage() {
                 >
                   Finalizar compra
                 </Button>
-                {!token && (
+                {!isAuthenticated && (
                   <p className="text-center text-[13px] leading-relaxed text-muted">
                     Para finalizar la compra necesitás{' '}
                     <button

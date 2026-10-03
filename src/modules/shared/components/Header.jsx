@@ -30,8 +30,11 @@ function Header() {
   const navigate = useNavigate();
   const { isAuthenticated, singout } = useAuth();
   const cartCount = useCartCount();
-  const isLoggedIn = isAuthenticated || Boolean(localStorage.getItem('token'));
-  const isAdmin = localStorage.getItem('role') === ROLES.ADMIN;
+  // AuthProvider es la unica fuente de verdad de la sesion (descarta tokens vencidos).
+  const isLoggedIn = isAuthenticated;
+  const isAdmin = isLoggedIn && localStorage.getItem('role') === ROLES.ADMIN;
+  // Las cuentas de administrador no tienen cliente asociado: no hacen pedidos.
+  const canSeeOrders = isLoggedIn && !isAdmin;
 
   // Cierra el menu de cuenta con clic afuera o Escape.
   useEffect(() => {
@@ -81,7 +84,7 @@ function Header() {
 
           <nav aria-label="Principal" className="hidden items-center gap-8 md:flex">
             <NavLink to="/" end className={navLinkClass}>Catálogo</NavLink>
-            {isLoggedIn && <NavLink to="/orders" className={navLinkClass}>Mis pedidos</NavLink>}
+            {canSeeOrders && <NavLink to="/orders" className={navLinkClass}>Mis pedidos</NavLink>}
           </nav>
 
           <div className="flex items-center gap-1">
@@ -105,7 +108,7 @@ function Header() {
                 >
                   <div className="md:hidden">
                     <button role="menuitem" className={menuItemClass} onClick={() => goTo('/')}>Catálogo</button>
-                    {isLoggedIn && (
+                    {canSeeOrders && (
                       <button role="menuitem" className={menuItemClass} onClick={() => goTo('/orders')}>Mis pedidos</button>
                     )}
                     <div className="my-2 h-px bg-line" />
