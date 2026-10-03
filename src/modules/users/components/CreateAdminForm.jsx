@@ -1,11 +1,25 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import Input from '../../shared/components/Input';
-import Button from '../../shared/components/Button';
 import { createAdmin } from '../services/createAdmin';
+import {
+  DISPLAY_NAME_RULES,
+  EMAIL_RULES,
+  MIN_ADMIN_PASSWORD_LENGTH,
+  USERNAME_RULES,
+  newPasswordRules,
+  passwordHint,
+} from '../../auth/helpers/userRules';
+import Alert from '../../shared/ui/Alert';
+import Button from '../../shared/ui/Button';
+import TextField from '../../shared/ui/TextField';
 
-// Igual que el backend (UserRules.MinAdminPasswordLength)
-const MIN_ADMIN_PASSWORD_LENGTH = 12;
+const EMPTY_ADMIN = {
+  userName: '',
+  displayName: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+};
 
 /**
  * Formulario para que un administrador cree otro administrador.
@@ -15,37 +29,20 @@ const MIN_ADMIN_PASSWORD_LENGTH = 12;
 function CreateAdminForm() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors },
-  } = useForm({
-    defaultValues: {
-      userName: '',
-      displayName: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-    },
-  });
+    getValues,
+    formState: { errors, isSubmitting },
+  } = useForm({ defaultValues: EMPTY_ADMIN });
 
   const onValid = async (formData) => {
-    if (formData.password !== formData.confirmPassword) {
-      setErrorMessage('Las contraseñas no coinciden');
-
-      return;
-    }
-
-    setLoading(true);
     setErrorMessage('');
     setSuccessMessage('');
 
     const { error } = await createAdmin(formData);
-
-    setLoading(false);
 
     if (error) {
       setErrorMessage(error);
@@ -53,106 +50,69 @@ function CreateAdminForm() {
       return;
     }
 
-    setSuccessMessage(`Administrador "${formData.userName}" creado correctamente.`);
+    setSuccessMessage(`Listo: “${formData.userName}” ya puede ingresar al panel.`);
     reset();
   };
 
   return (
-    <form
-      className='
-        flex
-        flex-col
-        gap-6
-        bg-zinc-900
-        p-6
-        sm:p-8
-        w-full
-        max-w-md
-        sm:rounded-lg
-        text-white
-        rounded-xl
-        mx-auto
-      '
-      onSubmit={handleSubmit(onValid)}
-    >
-      <div className="text-zinc-50">
-        <h1 className="text-2xl font-bold mb-2">Nuevo administrador</h1>
-        <p className="text-sm text-zinc-400">
-          Otorga acceso completo al panel. Los clientes se registran desde la tienda.
-        </p>
+    <form className="flex flex-col gap-5" onSubmit={handleSubmit(onValid)} noValidate>
+      {successMessage && <Alert tone="success">{successMessage}</Alert>}
+      {errorMessage && <Alert tone="danger">{errorMessage}</Alert>}
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <TextField
+          label="Usuario"
+          required
+          autoComplete="off"
+          error={errors.userName?.message}
+          disabled={isSubmitting}
+          {...register('userName', USERNAME_RULES)}
+        />
+        <TextField
+          label="Nombre para mostrar"
+          required
+          autoComplete="off"
+          error={errors.displayName?.message}
+          disabled={isSubmitting}
+          {...register('displayName', DISPLAY_NAME_RULES)}
+        />
+        <TextField
+          label="Email"
+          type="email"
+          required
+          autoComplete="off"
+          className="sm:col-span-2"
+          error={errors.email?.message}
+          disabled={isSubmitting}
+          {...register('email', EMAIL_RULES)}
+        />
+        <TextField
+          label="Contraseña"
+          type="password"
+          required
+          autoComplete="new-password"
+          hint={passwordHint(MIN_ADMIN_PASSWORD_LENGTH)}
+          error={errors.password?.message}
+          disabled={isSubmitting}
+          {...register('password', newPasswordRules(MIN_ADMIN_PASSWORD_LENGTH))}
+        />
+        <TextField
+          label="Confirmar contraseña"
+          type="password"
+          required
+          autoComplete="new-password"
+          error={errors.confirmPassword?.message}
+          disabled={isSubmitting}
+          {...register('confirmPassword', {
+            required: 'Confirmá la contraseña',
+            validate: (value) => value === getValues('password') || 'Las contraseñas no coinciden',
+          })}
+        />
       </div>
 
-      <Input
-        label='Usuario'
-        { ...register('userName', { required: 'Usuario es obligatorio' }) }
-        error={errors.userName?.message}
-        disabled={loading}
-      />
-
-      <Input
-        label='Nombre para mostrar'
-        { ...register('displayName', {
-          required: 'El nombre es obligatorio',
-          minLength: { value: 3, message: 'Debe tener al menos 3 caracteres' },
-        }) }
-        error={errors.displayName?.message}
-        disabled={loading}
-      />
-
-      <Input
-        label='Email'
-        { ...register('email', {
-          required: 'Email es obligatorio',
-          pattern: {
-            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-            message: 'Email inválido',
-          },
-        }) }
-        error={errors.email?.message}
-        disabled={loading}
-      />
-
-      <Input
-        label='Contraseña'
-        type='password'
-        { ...register('password', {
-          required: 'Contraseña es obligatoria',
-          minLength: {
-            value: MIN_ADMIN_PASSWORD_LENGTH,
-            message: `Debe tener al menos ${MIN_ADMIN_PASSWORD_LENGTH} caracteres`,
-          },
-        }) }
-        error={errors.password?.message}
-        disabled={loading}
-      />
-
-      <Input
-        label='Confirmar contraseña'
-        type='password'
-        { ...register('confirmPassword', { required: 'Debe confirmar la contraseña' }) }
-        error={errors.confirmPassword?.message}
-        disabled={loading}
-      />
-
-      <Button
-        type='submit'
-        disabled={loading}
-        className='shadow-l rounded-xl p-4 bg-zinc-900 text-white hover:bg-zinc-800'
-      >
-        {loading ? 'Creando...' : 'Crear administrador'}
+      <Button type="submit" size="lg" className="mt-2 self-start" disabled={isSubmitting}>
+        {isSubmitting ? 'Creando…' : 'Crear administrador'}
       </Button>
-
-      {successMessage && (
-        <div className="bg-green-900 border border-green-200 text-green-200 px-4 py-3 rounded">
-          {successMessage}
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="bg-red-950 border border-red-200 text-red-200 px-4 py-3 rounded">
-          {errorMessage}
-        </div>
-      )}
     </form>
   );
 }

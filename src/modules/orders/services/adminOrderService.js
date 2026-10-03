@@ -1,12 +1,21 @@
 import { instance } from '../../shared/api/axiosInstance';
 import { getErrorMessage } from '../../shared/helpers/apiError';
 
-export const getAllOrders = async (pageNumber = 1, pageSize = 10) => {
+/**
+ * Lista paginada de todos los pedidos (solo administradores).
+ *
+ * @param {number} pageNumber
+ * @param {number} pageSize
+ * @param {string} [status] - Estado de OrderStatus ('Pending', 'Shipped'...); vacio = todos
+ * @returns {Promise<{data: {total: number, items: array} | null, error: null | string}>}
+ */
+export const getAllOrders = async (pageNumber = 1, pageSize = 10, status = '') => {
   try {
     const response = await instance.get('api/orders/admin', {
       params: {
         pageNumber,
         pageSize,
+        status: status || undefined,
       },
     });
 
@@ -19,37 +28,33 @@ export const getAllOrders = async (pageNumber = 1, pageSize = 10) => {
     };
   } catch (error) {
     console.error('Error fetching orders:', error);
+
     return {
       data: null,
-      error: getErrorMessage(error, 'Error al cargar las ordenes'),
+      error: getErrorMessage(error, 'Error al cargar los pedidos'),
     };
   }
 };
 
-export const getAdminOrderById = async (orderId) => {
+/**
+ * Cambia el estado de un pedido (PUT /api/orders/{id}/status). El dominio
+ * valida la transicion: una no permitida responde 422 con su mensaje.
+ *
+ * @param {string} orderId
+ * @param {string} newStatus - Estado de OrderStatus ('Processing', 'Shipped'...)
+ * @returns {Promise<{data: object | null, error: null | string}>} Pedido actualizado
+ */
+export const updateOrderStatus = async (orderId, newStatus) => {
   try {
-    const response = await instance.get(`api/orders/admin/${orderId}`);
-    return {
-      data: response.data,
-      error: null,
-    };
+    const response = await instance.put(`api/orders/${orderId}/status`, { newStatus });
+
+    return { data: response.data, error: null };
   } catch (error) {
-    if (error?.response?.status === 404) {
-      try {
-        const fallback = await instance.get(`api/orders/${orderId}`);
-        return { data: fallback.data, error: null };
-      } catch (err) {
-        console.error('Fallback order detail error:', err);
-        return {
-          data: null,
-          error: getErrorMessage(err, 'Error al cargar el detalle de la orden'),
-        };
-      }
-    }
-    console.error('Error fetching admin order detail:', error);
+    console.error('Error updating order status:', error);
+
     return {
       data: null,
-      error: getErrorMessage(error, 'Error al cargar el detalle de la orden'),
+      error: getErrorMessage(error, 'No se pudo actualizar el estado del pedido'),
     };
   }
 };

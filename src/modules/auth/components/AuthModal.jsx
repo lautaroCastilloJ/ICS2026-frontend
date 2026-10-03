@@ -5,29 +5,7 @@ import Alert from '../../shared/ui/Alert';
 import Button from '../../shared/ui/Button';
 import Modal from '../../shared/ui/Modal';
 import TextField from '../../shared/ui/TextField';
-
-// Mismas reglas que UserRules del backend: si el formulario las acepta, el
-// servidor tambien.
-const USERNAME_RULES = {
-  required: 'El usuario es obligatorio',
-  minLength: { value: 3, message: 'Debe tener entre 3 y 20 caracteres' },
-  maxLength: { value: 20, message: 'Debe tener entre 3 y 20 caracteres' },
-  pattern: {
-    value: /^[a-zA-Z0-9_.-]+$/,
-    message: 'Solo letras, números, puntos, guiones y guiones bajos',
-  },
-};
-
-const PASSWORD_RULES = {
-  required: 'La contraseña es obligatoria',
-  minLength: { value: 8, message: 'Debe tener al menos 8 caracteres' },
-  validate: {
-    upper: (value) => /[A-Z]/.test(value) || 'Debe incluir una letra mayúscula',
-    lower: (value) => /[a-z]/.test(value) || 'Debe incluir una letra minúscula',
-    digit: (value) => /\d/.test(value) || 'Debe incluir un número',
-    symbol: (value) => /[\W_]/.test(value) || 'Debe incluir un carácter especial',
-  },
-};
+import { DISPLAY_NAME_RULES, EMAIL_RULES, USERNAME_RULES, newPasswordRules, passwordHint } from '../helpers/userRules';
 
 const EMPTY_FORM = {
   username: '',
@@ -155,13 +133,7 @@ function AuthModal({ onClose, initialMode = 'login' }) {
               autoComplete="email"
               placeholder="tu@email.com"
               error={errors.email?.message}
-              {...register('email', {
-                required: 'El email es obligatorio',
-                pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Email inválido',
-                },
-              })}
+              {...register('email', EMAIL_RULES)}
             />
             <TextField
               label="Nombre completo"
@@ -169,11 +141,7 @@ function AuthModal({ onClose, initialMode = 'login' }) {
               autoComplete="name"
               placeholder="Cómo querés que te llamemos"
               error={errors.displayName?.message}
-              {...register('displayName', {
-                required: 'El nombre completo es obligatorio',
-                minLength: { value: 3, message: 'Debe tener entre 3 y 100 caracteres' },
-                maxLength: { value: 100, message: 'Debe tener entre 3 y 100 caracteres' },
-              })}
+              {...register('displayName', DISPLAY_NAME_RULES)}
             />
             <TextField
               label="Teléfono"
@@ -192,9 +160,9 @@ function AuthModal({ onClose, initialMode = 'login' }) {
           type="password"
           required
           autoComplete={isLogin ? 'current-password' : 'new-password'}
-          hint={isLogin ? undefined : 'Al menos 8 caracteres, con mayúscula, minúscula, número y símbolo.'}
+          hint={isLogin ? undefined : passwordHint()}
           error={errors.password?.message}
-          {...register('password', isLogin ? { required: 'La contraseña es obligatoria' } : PASSWORD_RULES)}
+          {...register('password', isLogin ? { required: 'La contraseña es obligatoria' } : newPasswordRules())}
         />
 
         {!isLogin && (

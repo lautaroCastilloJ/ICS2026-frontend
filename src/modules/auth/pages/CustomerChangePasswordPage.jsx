@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import Header from '../../shared/components/Header';
+import Footer from '../../shared/components/Footer';
 import ChangePasswordForm from '../components/ChangePasswordForm';
 import useAuth from '../hook/useAuth';
 
@@ -12,16 +13,22 @@ function CustomerChangePasswordPage() {
   const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
-    return <Navigate to='/' />;
+    return <Navigate to="/" />;
   }
 
   return (
-    <div className="min-h-screen bg-zinc-900">
+    <div className="flex min-h-dvh flex-col">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="mx-auto w-full max-w-xl flex-1 px-4 pb-28 pt-12 sm:px-6 sm:pt-18">
+        <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Cambiar contraseña.</h1>
+        <p className="mb-10 mt-3 text-[17px] text-muted">
+          Por seguridad, primero confirmá tu contraseña actual.
+        </p>
         <ChangePasswordForm />
       </main>
+
+      <Footer />
     </div>
   );
 }

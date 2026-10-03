@@ -1,24 +1,97 @@
 import { useState, useEffect } from 'react';
 import { getOrderById } from '../services/orderService';
 import { formatAddress } from '../helpers/address';
-import { getOrderStatus, shortOrderNumber } from '../helpers/orderStatus';
+import { getNextOrderStatuses, getOrderStatus, shortOrderNumber } from '../helpers/orderStatus';
+import { updateOrderStatus } from '../services/adminOrderService';
 import { formatDate, formatPrice } from '../../shared/helpers/format';
 import Alert from '../../shared/ui/Alert';
 import Badge from '../../shared/ui/Badge';
+import Button from '../../shared/ui/Button';
 import Modal from '../../shared/ui/Modal';
 
 // Acepta tanto camelCase como PascalCase en las respuestas del backend.
 const pick = (source, camel, pascal) => source?.[camel] ?? source?.[pascal];
 
 /**
+ * Cambio de estado (solo administradores). Ofrece unicamente las transiciones
+ * que permite el dominio; cancelar pide confirmacion en el mismo lugar.
+ */
+function StatusActions({ orderId, status, onChanged }) {
+  const [saving, setSaving] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [error, setError] = useState('');
+  const nextStatuses = getNextOrderStatuses(status);
+
+  const change = async (newStatus) => {
+    setSaving(true);
+    setError('');
+
+    const { data, error: updateError } = await updateOrderStatus(orderId, newStatus);
+
+    setSaving(false);
+    setConfirmCancel(false);
+
+    if (updateError) {
+      setError(updateError);
+
+      return;
+    }
+
+    onChanged(data);
+  };
+
+  if (nextStatuses.length === 0) {
+    return <p className="text-[15px] text-muted">Este pedido ya está finalizado: su estado no se puede cambiar.</p>;
+  }
+
+  const advance = nextStatuses.filter((next) => next.value !== 'Cancelled');
+  const canCancel = nextStatuses.some((next) => next.value === 'Cancelled');
+
+  return (
+    <div className="flex flex-col gap-4">
+      {error && <Alert tone="danger">{error}</Alert>}
+
+      {confirmCancel ? (
+        <div role="alert" className="flex flex-col gap-3 rounded-2xl bg-danger-surface p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[15px] font-medium text-danger">¿Cancelar el pedido? No se puede deshacer.</p>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setConfirmCancel(false)} disabled={saving} autoFocus>
+              No
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => change('Cancelled')} disabled={saving}>
+              {saving ? 'Cancelando…' : 'Sí, cancelar'}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-3">
+          {advance.map((next) => (
+            <Button key={next.value} onClick={() => change(next.value)} disabled={saving}>
+              {saving ? 'Guardando…' : `Marcar como ${next.label.toLowerCase()}`}
+            </Button>
+          ))}
+          {canCancel && (
+            <Button variant="danger" onClick={() => setConfirmCancel(true)} disabled={saving}>
+              Cancelar pedido
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Modal con el detalle completo de un pedido. Lo usan "Mis pedidos" y el
- * listado de órdenes del panel de administración.
+ * listado de pedidos del panel de administración.
  *
  * @param {object} [order] - Resumen ya cargado (se muestra mientras llega el detalle)
  * @param {string} [orderId] - Id del pedido, si no se pasa `order`
+ * @param {boolean} [isAdmin] - Muestra el cambio de estado
+ * @param {function} [onStatusChanged] - Recibe el pedido actualizado
  * @param {function} onClose
  */
-function OrderDetailModal({ order, orderId, onClose }) {
+function OrderDetailModal({ order, orderId, isAdmin = false, onStatusChanged, onClose }) {
   const effectiveId = orderId || order?.id;
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(Boolean(effectiveId));
@@ -88,6 +161,20 @@ function OrderDetailModal({ order, orderId, onClose }) {
           <dd className="mt-1 text-[21px] font-semibold tracking-tight">{formatPrice(total)}</dd>
         </div>
       </dl>
+
+      {isAdmin && !loading && (
+        <section aria-labelledby="detalle-estado" className="mt-8">
+          <h3 id="detalle-estado" className="mb-3 text-[17px] font-semibold">Actualizar estado</h3>
+          <StatusActions
+            orderId={effectiveId}
+            status={pick(orderData, 'status', 'Status')}
+            onChanged={(updated) => {
+              setDetails(updated);
+              onStatusChanged?.(updated);
+            }}
+          />
+        </section>
+      )}
 
       <section aria-labelledby="detalle-productos" className="mt-8">
         <h3 id="detalle-productos" className="mb-2 text-[17px] font-semibold">Productos</h3>

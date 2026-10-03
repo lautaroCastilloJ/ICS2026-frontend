@@ -1,11 +1,17 @@
 import ChangePasswordForm from '../components/ChangePasswordForm';
+import { MIN_ADMIN_PASSWORD_LENGTH } from '../helpers/userRules';
+import PageHeader from '../../shared/ui/PageHeader';
 
-// Igual que el backend (UserRules.MinAdminPasswordLength)
-const MIN_ADMIN_PASSWORD_LENGTH = 12;
-
+/** Cambio de contraseña dentro del panel: los administradores necesitan 12+ caracteres. */
 function ChangePasswordPage() {
   return (
-    <ChangePasswordForm minLength={MIN_ADMIN_PASSWORD_LENGTH} />
+    <div className="max-w-xl">
+      <PageHeader
+        title="Cambiar contraseña"
+        description="Por seguridad, primero confirmá tu contraseña actual."
+      />
+      <ChangePasswordForm minLength={MIN_ADMIN_PASSWORD_LENGTH} />
+    </div>
   );
 }
 

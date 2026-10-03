@@ -1,136 +1,93 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import Input from '../../shared/components/Input';
-import Button from '../../shared/components/Button';
 import { adminLogin } from '../services/adminLogin';
+import Alert from '../../shared/ui/Alert';
+import Button, { ButtonLink } from '../../shared/ui/Button';
+import TextField from '../../shared/ui/TextField';
+import { ShieldIcon } from '../../shared/ui/icons';
 
 /**
  * Componente LoginForm
  * Formulario de login SOLO para administradores
- * 
+ *
  * @component
  * @returns {JSX.Element} Formulario de login
  */
 function LoginForm() {
   const [errorMessage, setErrorMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  
+
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm({ defaultValues: { username: '', password: '' } });
 
   const navigate = useNavigate();
 
   /**
-   * Maneja el envío del formulario de login
-   * Solo permite acceso a administradores
+   * Inicia sesión; el servicio rechaza a quien no sea administrador
    */
   const onValid = async (formData) => {
     try {
-      setLoading(true);
       setErrorMessage('');
 
-      // Llamamos al servicio de login para administradores
       const { data, error } = await adminLogin(formData.username, formData.password);
 
       if (error) {
         setErrorMessage(error);
+
         return;
       }
 
-      // Si es exitoso, guardamos el token y el rol
       localStorage.setItem('token', data.token);
       localStorage.setItem('role', data.role);
-      
-      // Redirigimos al panel de administración
+
       navigate('/admin');
-      
       // Recargamos la página para actualizar el estado de autenticación
       window.location.reload();
     } catch (error) {
-      setErrorMessage('Error inesperado al iniciar sesión');
+      setErrorMessage('Error inesperado al iniciar sesión.');
       console.error('Login error:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <form 
-      className='
-        flex
-        flex-col
-        gap-20
-        bg-zinc-900
-        p-8
-        sm:w-md
-        sm:gap-4
-        sm:rounded-lg
-        sm:shadow-l
-        text-white
-        shadow-l rounded-xl
-      '
-      onSubmit={handleSubmit(onValid)}
-    >
-      {/* Título */}
-      <div className="sm:mb-4 text-zinc-50">
-        <h1 className="text-2xl font-bold text-zinc-50 mb-2">
-          Panel Administrativo
-        </h1>
-        <p className="text-sm text-zinc-400">
-          Solo administradores pueden acceder
-        </p>
+    <form className="flex flex-col gap-5" onSubmit={handleSubmit(onValid)} noValidate>
+      <div className="mb-3 flex flex-col items-center text-center">
+        <div className="mb-5 flex size-14 items-center justify-center rounded-2xl bg-surface text-ink dark:bg-canvas">
+          <ShieldIcon size={26} />
+        </div>
+        <h1 className="text-[28px] font-semibold tracking-tight">Panel de administración</h1>
+        <p className="mt-2 text-[15px] text-muted">Ingresá con tu cuenta de administrador.</p>
       </div>
 
-      {/* Campo usuario */}
-      <Input
-        label='Usuario'
-        { ...register('username', {
-          required: 'Usuario es obligatorio',
-        }) }
+      {errorMessage && <Alert tone="danger">{errorMessage}</Alert>}
+
+      <TextField
+        label="Usuario"
+        required
+        autoComplete="username"
         error={errors.username?.message}
-        disabled={loading}
+        disabled={isSubmitting}
+        {...register('username', { required: 'El usuario es obligatorio' })}
       />
 
-      {/* Campo contraseña */}
-      <Input
-        label='Contraseña'
-        { ...register('password', {
-          required: 'Contraseña es obligatoria',
-        }) }
-        type='password'
+      <TextField
+        label="Contraseña"
+        type="password"
+        required
+        autoComplete="current-password"
         error={errors.password?.message}
-        disabled={loading}
+        disabled={isSubmitting}
+        {...register('password', { required: 'La contraseña es obligatoria' })}
       />
 
-      {/* Botón de login */}
-      <Button 
-        type='submit'
-        disabled={loading}
-        className='shadow-l rounded-xl p-4 bg-zinc-900 text-white hover:bg-zinc-800'
-      >
-        {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+      <Button type="submit" size="lg" block className="mt-2" disabled={isSubmitting}>
+        {isSubmitting ? 'Ingresando…' : 'Iniciar sesión'}
       </Button>
 
-      {/* Mensaje de error */}
-      {errorMessage && (
-        <div className="bg-red-950 border border-red-200 text-red-200 px-4 py-3 rounded">
-          {errorMessage}
-        </div>
-      )}
-
-      {/* Enlace para volver a inicio */}
-      <Button 
-        variant='secondary'
-        onClick={() => navigate('/')}
-        type='button'
-        className='shadow-l rounded-xl p-4 bg-zinc-900 text-white hover:bg-zinc-800'
-      >
-        Volver a Inicio
-      </Button>
+      <ButtonLink to="/" variant="ghost" block>Volver a la tienda</ButtonLink>
     </form>
   );
 }

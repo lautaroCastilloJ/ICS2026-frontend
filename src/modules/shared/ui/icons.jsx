@@ -72,6 +72,53 @@ export const TrashIcon = (props) => (
   </Icon>
 );
 
+export const GridIcon = (props) => (
+  <Icon {...props}>
+    <rect x="4" y="4" width="7" height="7" rx="2" /><rect x="13" y="4" width="7" height="7" rx="2" />
+    <rect x="4" y="13" width="7" height="7" rx="2" /><rect x="13" y="13" width="7" height="7" rx="2" />
+  </Icon>
+);
+
+export const BoxIcon = (props) => (
+  <Icon {...props}>
+    <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" /><path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
+  </Icon>
+);
+
+export const ReceiptIcon = (props) => (
+  <Icon {...props}>
+    <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" /><path d="M9 8h6M9 12h6" />
+  </Icon>
+);
+
+export const ShieldIcon = (props) => (
+  <Icon {...props}><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></Icon>
+);
+
+export const KeyIcon = (props) => (
+  <Icon {...props}><circle cx="8" cy="15" r="4" /><path d="M11 12l9-9M17 6l3 3M15 8l2 2" /></Icon>
+);
+
+export const LogoutIcon = (props) => (
+  <Icon {...props}><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10" /></Icon>
+);
+
+export const MenuIcon = (props) => (
+  <Icon {...props}><path d="M4 8h16M4 16h16" /></Icon>
+);
+
+export const StoreIcon = (props) => (
+  <Icon {...props}><path d="M4 9l1.5-5h13L20 9M4 9v11h16V9M4 9h16M9 20v-6h6v6" /></Icon>
+);
+
+export const PencilIcon = (props) => (
+  <Icon {...props}><path d="M14.5 5.5l4 4M4 20l1-5L15.5 4.5a1.4 1.4 0 0 1 2 0l2 2a1.4 1.4 0 0 1 0 2L9 19l-5 1z" /></Icon>
+);
+
+export const ArrowRightIcon = (props) => (
+  <Icon strokeWidth={1.8} {...props}><path d="M5 12h14M13 6l6 6-6 6" /></Icon>
+);
+
 export const CheckIcon = (props) => (
   <Icon strokeWidth={2} {...props}><path d="M5 12.5l4.5 4.5L19 7.5" /></Icon>
 );

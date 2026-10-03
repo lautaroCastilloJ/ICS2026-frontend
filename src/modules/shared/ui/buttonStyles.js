@@ -1,9 +1,7 @@
 import { cn } from './cn';
 
-// shadow-none, overflow-visible y los paddings anulan los estilos heredados
-// de elements.css sobre <button>.
 const BASE = 'inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap ' +
-  'shadow-none overflow-visible cursor-pointer transition duration-200 ' +
+  'cursor-pointer transition duration-200 ' +
   'disabled:cursor-not-allowed';
 
 const VARIANTS = {

@@ -13,7 +13,9 @@ export const getProducts = async (search = '', status = 'all', pageNumber = 1, p
   try {
     // Mapear estado a lo que espera el backend
     let statusParam = null;
+
     if (status === 'enabled') statusParam = 'enabled';
+
     if (status === 'disabled') statusParam = 'disabled';
 
     const response = await instance.get('api/products/admin', {
@@ -40,43 +42,10 @@ export const getProducts = async (search = '', status = 'all', pageNumber = 1, p
     }
 
     console.error('Error fetching products:', error);
+
     return {
       data: null,
       error: getErrorMessage(error, 'Error al cargar los productos'),
-    };
-  }
-};
-
-/**
- * Obtiene detalle de un producto por ID para edicion
- * @param {string|number} id
- */
-export const getProductById = async (id) => {
-  try {
-    // Intentar primero el endpoint publico (evita 404 del admin)
-    const response = await instance.get(`api/products/${id}`);
-    return {
-      data: response.data,
-      error: null,
-    };
-  } catch (error) {
-    // Si el publico falla/404, probar el admin
-    if (error?.response?.status === 404) {
-      try {
-        const fallback = await instance.get(`api/products/admin/${id}`);
-        return { data: fallback.data, error: null };
-      } catch (err) {
-        console.error('Fallback product detail error:', err);
-        return {
-          data: null,
-          error: getErrorMessage(err, 'Error al cargar el producto'),
-        };
-      }
-    }
-    console.error('Error fetching product detail:', error);
-    return {
-      data: null,
-      error: getErrorMessage(error, 'Error al cargar el producto'),
     };
   }
 };
